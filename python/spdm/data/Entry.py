@@ -219,15 +219,6 @@ class Entry(Pluggable):
         """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
 
-    @deprecated
-    def find_next(self, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
-        """
-        Find the value from the cache.
-        Return a generator of the results.
-        Could be overridden by subclasses.
-        """
-        return self._path.find_next(self._data, start, *args, **kwargs)
-
     def find(self, *args, **kwargs) -> Entry:
         raise NotImplementedError()
 
@@ -281,8 +272,8 @@ class ChainEntry(Entry):
             if not _entry.exists:
                 continue
 
-            for idx, e in _entry.for_each():
-                yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[idx + 1 :]])
+            for k, e in _entry.for_each(*args, **kwargs):
+                yield k, ChainEntry(e, *[o.child(k) for o in self._entrys[idx + 1 :]])
 
     def find(self, *args, **kwargs):
         return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])

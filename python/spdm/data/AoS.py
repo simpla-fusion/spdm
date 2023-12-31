@@ -121,34 +121,27 @@ class AoS(List[_T]):
 
     def _get(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
-        default_value = kwargs.pop("default_value", _undefined_)
-
-        if default_value is _undefined_:
-            default_value = self._metadata.get("default_initial", _not_found_)
-
-        if isinstance(query, (int, OpTags)):
+        if self._identifier is None or not isinstance(query, str) or not query.isidentifier():
             return super()._get(query, default_value=default_value, **kwargs)
 
-        elif self._identifier is not None and isinstance(query, str) and query.isidentifier():
-            for d in self:
-                if d.get(self._identifier, None) == query:
-                    return d
-            else:
-                if not isinstance(default_value, dict):
-                    return default_value
-                else:
-                    value = deepcopy(default_value)
-                    value[self._identifier] = query
-                    return self._as_child(value, self.__len__())
+        default_value = kwargs.pop("default_value", _undefined_)
 
-        elif not isinstance(query, (slice, dict)):
-            raise TypeError(f" {query} is not supported")
+        if default_value is _undefined_ or default_value is _not_found_:
+            default_value = self._metadata.get("default_initial", _not_found_) or {}
 
-        return QueryResult(
-            query,
-            self._cache,
-            default_value=default_value,
-            _type_hint=self._type_hint(0),
-            _entry=self._entry,
-            **kwargs,
-        )
+        pth = Path({self._identifier:query})
+        value= pth.get(self, None) 
+                
+        # else:
+        #     value = deepcopy(default_value)
+        #     pth.update(value, query)
+        #     return self._as_child(value, self.__len__())
+
+        # return QueryResult(
+        #     query,
+        #     self._cache,
+        #     default_value=default_value,
+        #     _type_hint=self._type_hint(0),
+        #     _entry=self._entry,
+        #     **kwargs,
+        # )

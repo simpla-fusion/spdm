@@ -62,10 +62,10 @@ class Actor(Pluggable):
                     continue
                 node = p_inputs.get_source(name, _not_found_)
 
-                if node is _not_found_:
+                if node is _not_found_ or node is None:
                     node = getattr(parent, name, _not_found_)
 
-                if node is not _not_found_:
+                if node is not _not_found_ and node is not None:
                     edge.source.update(node)
 
     @property

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Generator
 from typing_extensions import Self
 import collections.abc
 import pathlib
@@ -208,7 +209,7 @@ class HTree(HTreeNode):
         raise KeyError(f"{path} not found")
 
     def __getitem__(self, path) -> HTree:
-        res = self.get(path, force=True)
+        res = self.get(path, default_value=_not_found_)
         if res is _not_found_:
             return self.__missing__(path)
         else:
@@ -234,7 +235,7 @@ class HTree(HTreeNode):
         return self._query([], Path.tags.equal, other)  # type:ignore
 
     def __update__(self, *args, **kwargs):
-        self._cache = Path._op_update(self._cache, *args, **kwargs)
+        self._cache = Path._do_update(self._cache, *args, **kwargs)
         return self
 
     # def children(self) -> typing.Generator[typing.Any, None, None]: yield from self._foreach()
@@ -260,76 +261,16 @@ class HTree(HTreeNode):
             res = default_value
         return res
 
-    def get(
-        self,
-        path: Path | PathLike,
-        default_value: typing.Any = _undefined_,
-        *args,
-        force=False,
-        **kwargs,
-    ) -> typing.Any:
-        path = as_path(path)
-        length = len(path)
+    def get(self, path: PathLike, default_value=_not_found_) -> typing.Any:
+        path = as_path(path) 
 
-        if length == 0:
-            if force:
+        match len(path):
+            case 0:
                 return self
-            else:
-                return self.__value__
-
-        obj = self
-
-        pos = -1
-
-        for idx, p in enumerate(path[:-1]):
-            pos = idx
-            if p in [Path.tags.ancestors, Path.tags.descendants]:
-                break
-            elif p is Path.tags.parent:
-                tmp = getattr(obj, "_parent", _not_found_)
-            elif isinstance(p, str) and p.isidentifier() and hasattr(obj.__class__, p):
-                tmp = getattr(obj, p)
-            elif isinstance(obj, HTree):
-                tmp = obj._get(p, default_value=_not_found_, force=True)
-            else:
-                tmp = Path(path[idx:]).fetch(obj, default_value=_not_found_)
-                pos = len(path)
-                break
-
-            if tmp is _not_found_ or pos >= length:
-                break
-            else:
-                obj = tmp
-
-        if pos >= len(path):
-            pass
-        elif path[pos] is Path.tags.ancestors:
-            s_pth = path[pos + 1 :]
-            while obj is not None and obj is not _not_found_:
-                if isinstance(obj, HTree):
-                    tmp = obj.get(s_pth, default_value=_not_found_, force=True)
-                else:
-                    tmp = Path(s_pth).fetch(obj, default_value=_not_found_)
-                if tmp is _not_found_:
-                    obj = getattr(obj, "_parent", _not_found_)
-                else:
-                    obj = tmp
-                    break
-        elif path[pos] is Path.tags.descendants:
-            raise NotImplementedError(f"get(descendants) not implemented!")
-        elif isinstance(obj, HTree) and pos == length - 2:
-            obj = obj._get(path[-1], *args, default_value=default_value, force=force, **kwargs)
-        else:
-            # logger.debug(f"Can not find {path} {pos} in {obj}")
-            obj = _not_found_
-
-        if obj is _not_found_ or obj is _undefined_:
-            obj = default_value
-
-        if obj is _undefined_ and pos < len(path):
-            raise KeyError(f"Can not find {path}!")
-
-        return obj
+            case 1:
+                return self._get(path[0], default_value=default_value)
+            case _:
+                return path.get(self, default_value=default_value)
 
     @property
     def _root(self) -> HTreeNode | None:
@@ -341,17 +282,21 @@ class HTree(HTreeNode):
     def children(self) -> typing.Generator[HTree, None, None]:
         if isinstance(self._cache, list) and len(self._cache) > 0:
             for idx, value in enumerate(self._cache):
-                yield self._as_child(value, idx, _entry=self._entry.child(idx) if self._entry is not None else None)
+                yield idx, self._as_child(
+                    value, idx, _entry=self._entry.child(idx) if self._entry is not None else None
+                )
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
-            for key, value in self._cache.items():
-                yield self._as_child(value, key, _entry=self._entry.child(key) if self._entry is not None else None)
+            for key in list(self._cache.keys()):
+                yield key, self._as_child(
+                    self._cache[key], key, _entry=self._entry.child(key) if self._entry is not None else None
+                )
         elif self._entry is not None:
             self._cache = [_not_found_] * self._entry.count
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
-                    yield self._as_child(d, key)
+                    yield key, self._as_child(d, key)
                 else:
-                    yield self._as_child(None, key, _entry=d)
+                    yield key, self._as_child(None, key, _entry=d)
 
     ################################################################################
     # Private methods
@@ -516,7 +461,7 @@ class HTree(HTreeNode):
         self._cache[key] = res
         return res
 
-    def _get(self, query: PathLike = None, *args, _type_hint=None, **kwargs) -> typing.Any:
+    def _get(self, query: PathLike = None, _type_hint=None, **kwargs) -> typing.Any:
         """获取子节点"""
 
         value = _not_found_
@@ -541,12 +486,12 @@ class HTree(HTreeNode):
 
         elif isinstance(query, (int, slice, tuple, Query)):
             if _type_hint in numeric_type:
-                value = self._get_as_array(query, *args, _type_hint=_type_hint, **kwargs)
+                value = self._get_as_array(query, _type_hint=_type_hint, **kwargs)
             else:
-                value = self._get_as_list(query, *args, _type_hint=_type_hint, **kwargs)
+                value = self._get_as_list(query, _type_hint=_type_hint, **kwargs)
 
         elif isinstance(query, str):
-            value = self._get_as_dict(query, *args, _type_hint=_type_hint, **kwargs)
+            value = self._get_as_dict(query, _type_hint=_type_hint, **kwargs)
 
         elif isinstance(query, set):  # compound
             raise NotImplementedError(f"TODO: NamedDict")
@@ -558,7 +503,7 @@ class HTree(HTreeNode):
 
         return value  # type:ignore
 
-    def _get_as_array(self, idx, *args, default_value=_not_found_, **kwargs) -> NumericType:
+    def _get_as_array(self, idx, default_value=_not_found_, **kwargs) -> NumericType:
         if self._cache is _not_found_:
             self._cache = self._entry.__value__  # type:ignore
 
@@ -583,7 +528,7 @@ class HTree(HTreeNode):
 
         return self._as_child(cache, key, _entry=_entry, **kwargs)
 
-    def _get_as_list(self, key: PathLike, *args, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
+    def _get_as_list(self, key: PathLike, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO: {key}")
             # cache = QueryResult(self, key, *args, **kwargs)
@@ -701,7 +646,7 @@ class Container(HTree, typing.Generic[_T]):
     带有type hint的HTree，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
     """
 
-    def __iter__(self) -> typing.Generator[_T, None, None]:
+    def __iter__(self) -> typing.Generator[typing.Tuple[int | str, _T], None, None]:
         """遍历 children"""
         yield from self.children()
 
@@ -768,6 +713,18 @@ class List(Container[_T]):
 
     def __getitem__(self, path) -> _T:
         return super().get(path)
+
+    def __iter__(self) -> Generator[_T, None, None]:
+        for idx, v in self.children():
+            yield v
+
+    def append(self, other):
+        self.insert(other)
+        return self
+
+    def extend(self, other):
+        self.insert(other, _extend=True)
+        return self
 
     def __iadd__(self, other: list) -> typing.Type[List[_T]]:
         self.insert(other)

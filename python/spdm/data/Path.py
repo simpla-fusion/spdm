@@ -25,9 +25,11 @@ class OpTags(Flag):
     children = auto()   # 所有子节点
     ancestors =auto()   # 所有祖先节点  
     descendants = auto()# 所有后代节点
+    slibings=auto()     # 所有兄弟节点
 
     current = auto()    # current node
     next  = auto()      # next sibling
+    prev  = auto()      # previous sibling
 
     # RESTful operation for CRUD
     fetch  = auto()     # GET
@@ -41,12 +43,12 @@ class OpTags(Flag):
     is_list=auto()
     is_dict=auto()
     check_type = auto() # check type
+    keys=auto()         # 返回键值
     search = auto()     # search by query return idx
     dump  = auto()      # rescurive get all data
 
     # for sequence
     reduce = auto()
-
     sort  = auto()
 
     # predicate 谓词
@@ -347,9 +349,6 @@ class Path(list):
                 res.extend(pth[:])
         return res
 
-    def pop(self, idx) -> Path:
-        return Path(copy(self[:]).pop(idx))
-
     def __truediv__(self, p) -> Path:
         return copy(self).append(p)
 
@@ -621,14 +620,16 @@ class Path(list):
 
         return Path._resolve(path, [])
 
-    def get(self, target: typing.Any, default_value=_not_found_):
-        return self.fetch(target, default_value=default_value)
+    def has_slice(self) -> bool:
+        return any(isinstance(q, (slice)) for q in self[:])
+
+    def has_query(self) -> bool:
+        return any(isinstance(q, (Query)) for q in self[:])
 
     ###########################################################
     # RESTful API:
 
     # 非幂等
-
     def insert(self, target: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, Path]:
         """
         根据路径（self）向 target 添加元素。
@@ -641,10 +642,9 @@ class Path(list):
 
         对应 RESTful 中的 post，非幂等操作
         """
-        return Path._op_update(target, self[:], *args, _idempotent=False, **kwargs)
+        return Path._do_update(target, self[:], *args, _idempotent=False, **kwargs)
 
     # 幂等
-
     def remove(self, target: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         """根据路径（self）删除 target 中的元素。
 
@@ -654,19 +654,21 @@ class Path(list):
 
         返回修改后的target和删除的元素的个数
         """
-        # target, num = Path._exec(target, self[:-1], Path.tags.remove, self[-1]
-        #                          if len(self) > 0 else None, *args, quiet=quiet, **kwargs)
-        # return target, num
-        root = {"_": target}
+        return Path._do_update(target, self[:], None, *args, _idempotent=True, **kwargs)
 
-        path = ["_"] + self[:]
+        # # target, num = Path._exec(target, self[:-1], Path.tags.remove, self[-1]
+        # #                          if len(self) > 0 else None, *args, quiet=quiet, **kwargs)
+        # # return target, num
+        # root = {"_": target}
 
-        parent, suffix = Path._get_by_path(root, path[:-1], default_value=_not_found_)
+        # path = ["_"] + self[:]
 
-        if len(suffix) > 0:
-            return target, 0
-        else:
-            return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
+        # parent, suffix = Path._get_by_path(root, path[:-1], default_value=_not_found_)
+
+        # if len(suffix) > 0:
+        #     return target, 0
+        # else:
+        #     return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
 
     def update(self, target: typing.Any, *args, **kwargs) -> typing.Any:
         """
@@ -679,325 +681,54 @@ class Path(list):
 
         返回修改后的target
         """
-        return Path._op_update(target, self[:], *args, **kwargs)
+        return Path._do_update(target, self[:], *args, _idempotent=True, **kwargs)
 
-    def fetch(
-        self, target: typing.Any, op: Path.tags | str | None = None, *args, default_value=_not_found_, **kwargs
-    ) -> typing.Any:
+    def fetch(self, source: typing.Any, *args, **kwargs) -> typing.Any:
         """
         根据路径（self）查询元素。只读，不会修改 target
-
         对应 RESTful 中的 read，幂等操作
         """
-        obj, suffix = Path._get_by_path(target, self[:])
+        return Path._do_fetch(source, self[:], *args, **kwargs)
 
-        if len(suffix) == 0:
-            pass
-        elif suffix[0] is Path.tags.ancestors and len(suffix) > 1:
-            s_path = Path(suffix[1:])
-            while obj is not None and obj is not _not_found_:
-                tmp = s_path.get(obj, default_value=_not_found_)
+    def get(self, source: typing.Any, default_value=_not_found_):
+        return self._do_fetch(source, self[:], default_value=default_value)
 
-                if tmp is _not_found_:
-                    obj = getattr(obj, "_parent", _not_found_)
-                else:
-                    obj = tmp
-                    break
+    def copy(self, source: typing.Any, target: typing.Any, *args, **kwargs):
+        """copy object to target"""
+        return self._do_copy(source, target, self[:], *args, **kwargs)
 
-        elif suffix[0] is Path.tags.descendants:
-            raise NotImplementedError(f"get(descendants) not implemented!")
-        else:
-            obj = _not_found_
+    def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
+        yield from Path._do_for_each(source, self[:], *args, **kwargs)
 
-        if op is not None and op is not _not_found_:
-            return Path._apply_op(obj, op, *args, default_value=default_value, **kwargs)
-        elif obj is _not_found_:
-            return default_value
-        else:
-            return obj
-
-    @deprecated
-    def find_next(self, target: typing.Any, start: int | None) -> typing.Tuple[typing.Any, int | None]:
-        """从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
-
-        if len(self) == 0:
-            path = [slice(None)]
-        else:
-            path = self[:]
-
-        obj = target
-
-        next_id = None
-
-        suffix = []
-
-        for pth_pos, q in enumerate(path):
-            if not isinstance(q, (Query, slice)):
-                tmp = Path._op_fetch(obj, q, default_value=_not_found_)
-
-            tmp, next_id = Path._op_next(obj, q, start)
-            if next_id is None:
-                break
-
-            if tmp is _not_found_:
-                suffix = self[pth_pos:]
-                break
-
-            obj = tmp
-
-        if len(suffix) > 0:
-            return _not_found_, None
-        else:
-            return obj, next_id
-
-    def has_slice(self) -> bool:
-        return any(isinstance(q, (slice)) for q in self[:])
-
-    def has_query(self) -> bool:
-        return any(isinstance(q, (Query)) for q in self[:])
-
-    def for_each(self, target, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        if hasattr(target.__class__, "__entry__"):
-            yield from target.for_each(*args, **kwargs)
-
-        pos = next((i for i, q in enumerate(self) if isinstance(q, (Query, slice))), None)
-        if pos is None:
-            prefix = self[:]
-            suffix = []
-        else:
-            prefix = self[:pos]
-            suffix = self[pos:]
-
-        target, res_path = Path._get_by_path(target, prefix, default_value=_not_found_)
-
-        query = None
-
-        if target is _not_found_ or len(res_path) > 0:
-            # raise KeyError(f"Can not find {prefix[:-len(res_path)]} {res_path}")
-            return
-
-        elif len(suffix) == 0:
-            query = None
-            start = 0
-            stop = len(target)
-            step = 1
-
-        elif isinstance(suffix[0], slice):
-            start = suffix[0].start if suffix[0].start is not None else 0
-            stop = suffix[0].stop if suffix[0].stop is not None else len(target)
-            step = suffix[0].step if suffix[0].step is not None else 1
-            query = None
-            suffix = suffix[1:]
-
-        elif isinstance(suffix[0], Query):
-            start = 0
-            stop = len(target)
-            step = 1
-            query = suffix[0]
-            suffix = suffix[1:]
-
-        else:
-            raise RuntimeError(f"Unknown query type   {suffix}!")
-
-        next_id = start
-
-        while True:
-            if next_id >= stop or next_id >= len(target):
-                break
-
-            value = target[next_id]
-
-            if query is not None and not query.check(value):
-                continue
-
-            value, _res_pos = Path._get_by_path(value, suffix)
-
-            if value is _not_found_:
-                raise KeyError(f"Can not find {prefix+[next_id]+suffix[:-len(_res_pos)]}")
-
-            yield next_id, value
-
-            next_id += step
-
-    def keys(self, target, **kwargs) -> typing.Generator[str, None, None]:
-        obj, suffix = Path._get_by_path(target, self[:])
-        if len(suffix) > 0:
-            raise KeyError(f"{self[:-len(suffix)]}")
-        elif not isinstance(obj, collections.abc.Mapping):
-            raise KeyError(f"Can not get keys from {type(target)}")
-        yield from obj
+    def keys(self, source) -> typing.Generator[str, None, None]:
+        yield from Path._do_for_each(source, Path.tags.keys)
 
     # End API
     ###########################################################
 
     @staticmethod
-    def _apply_op(obj: typing.Any, op: Path.tags | str | None, *args, **kwargs):
-        if op is None:
-            op = Path._op_fetch
+    def _apply_op(obj: typing.Any, op: Path.tags, *args, **kwargs):
+        if op is Path.tags.fetch:
+            return obj
+
         elif isinstance(op, Path.tags):
-            op = op.name
-        elif isinstance(op, str) and op.startswith("$"):
-            op = op[1:]
-
-        if callable(op):
-            _op = op
-        elif isinstance(op, str):
-            _op = getattr(Path, f"_op_{op}", None)
+            func = getattr(Path, f"_op_{op.name}", None)
         else:
-            _op = None
+            func = op
 
-        if not callable(_op):
-            raise RuntimeError(f"Can not find callable operator {op}!")
+        if not callable(func):
+            raise RuntimeError(f"Unknown operator {op}")
 
         try:
-            res = _op(obj, *args, **kwargs)
+            res = func(obj, *args, **kwargs)
         except Exception as error:
-            raise RuntimeError(f'Illegal operator "{op}"!') from error
+            raise RuntimeError(f'Fail to call "{op}"! {func}') from error
 
         return res
 
     @staticmethod
-    def _make_path(target: dict | list, path: typing.List[PathLike], quiet=True) -> typing.Any:
-        length = len(path)
-
-        obj = target
-
-        pos = 0
-
-        while pos < length - 1:
-            if obj is _not_found_ or obj is None:
-                raise PathError(path[:pos], f"Can not find {type(target)}!")
-            elif hasattr(obj.__class__, "__entry__"):
-                obj = obj.__entry__.child(path[pos : length - 1])
-                pos = length - 1
-                break
-
-            p = path[pos]
-
-            if not isinstance(p, (int, str)):
-                raise PathError(path[: pos + 1])
-
-            tmp = Path._op_fetch(obj, p, default_value=_not_found_)
-
-            if tmp is not _not_found_:
-                obj = tmp
-                pos += 1
-            elif quiet:
-                default_value = {} if isinstance(path[pos + 1], str) else []
-
-                Path._op_update(obj, p, default_value)
-
-                obj = Path._op_fetch(obj, p)
-                pos += 1
-            else:
-                raise PathError(path[: pos + 1])
-
-        return obj
-
-    @staticmethod
-    def _get_by_path(
-        target: typing.Any, path: typing.List[PathLike], *args, default_value: typing.Any = _not_found_, **kwargs
-    ) -> typing.Any:
-        length = len(path)
-
-        obj = target
-
-        pos = 0
-
-        while pos < length:
-            if obj is _not_found_ or obj is None:
-                break
-
-            # elif hasattr(obj.__class__, "__entry__"):
-            #     obj = obj.__entry__.child(path[pos:])
-            #     pos = length
-            #     break
-
-            p = path[pos]
-
-            if p in [Path.tags.ancestors, Path.tags.descendants]:
-                break
-            elif p is Path.tags.parent:
-                tmp = getattr(obj, "_parent", _not_found_)
-            elif isinstance(p, (int, str)):
-                tmp = Path._op_fetch(obj, p, default_value=_not_found_ if pos < length - 1 else default_value)
-            else:
-                break
-
-            if tmp is _not_found_:
-                break
-
-            obj = tmp
-
-            pos += 1
-
-        return obj, path[pos:]
-
-    @staticmethod
-    def _op_fetch(
-        target: typing.Any,
-        key: int | str | None = None,
-        *args,
-        default_value=_not_found_,
-        **kwargs,
-    ) -> typing.Any:
-        # if isinstance(key, list):
-        #     if len(key) == 0:
-        #         key = _not_found_
-        #     elif len(key) == 1:
-        #         key = key[0]
-        #     else:
-        #         target = _not_found_
-        #         key = _not_found_
-
-        if key is _not_found_ or key is None:
-            res = target
-
-        elif isinstance(target, array_type) and isinstance(key, (int, slice, tuple)):
-            res = target[key]
-
-        elif isinstance(key, str):
-            res = getattr(target, key, _not_found_)
-            if res is _not_found_ and hasattr(target.__class__, "get"):
-                res = target.get(key, _not_found_)
-            if res is _not_found_ and hasattr(target.__class__, "__getitem__"):
-                try:
-                    res = target[key]
-                except Exception:
-                    res = _not_found_
-
-        elif isinstance(key, int):
-            # if key < 0:
-            #     key += len(target)
-
-            if key >= len(target):
-                res = _not_found_
-            else:
-                res = target[key]
-
-        elif isinstance(target, collections.abc.Sequence) and isinstance(key, slice):
-            res = target[key]
-
-        elif isinstance(key, set):
-            res = {p: Path(p).fetch(target, *args, **kwargs) for p in key}
-
-        elif isinstance(key, Path.tags):
-            res = Path._apply_op(target, key, *args, **kwargs)
-
-        else:
-            raise NotImplementedError(f"Not implemented query! {target} '{key}'")
-
-        # if len(args) > 0:
-        #     res = Path._op_fetch(res, *args, **kwargs)
-
-        if res is _not_found_:
-            res = default_value
-
-        return res
-
-    @staticmethod
-    def _op_dump(target: typing.Any, *args, **kwargs) -> typing.Any:
-        return serialize(target)
+    def _do_copy(source: typing.Any, target: typing.Any, *args, **kwargs) -> typing.Any:
+        raise NotImplementedError(f"TODO")
 
     @staticmethod
     def _update_tree(target, *sources, _idempotent=True, **kwargs):
@@ -1036,206 +767,356 @@ class Path(list):
         return target
 
     @staticmethod
-    def _op_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
-        _idempotent = kwargs.get("_idempotent", True)
-
+    def _do_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
         if len(path) == 0:
-            others = {k: kwargs.pop(k) for k in list(kwargs.keys()) if not k.startswith("_")}
+            idempotent = kwargs.get("_idempotent", True)
+            extend = kwargs.get("_extend", True)
 
-            sources = [*args, others]
+            if len(args) > 0 and isinstance(args[0], Path.tags):
+                target = Path._apply_op(target, *args, **kwargs)
 
-            for source in sources:
-                if source is _not_found_:
-                    # 不更新
-                    # @NOTE 当 source 为 None 时不会被忽略
-                    continue
+            else:
+                for source in args:
+                    if source is _not_found_:
+                        # 不更新
+                        # @NOTE 当 source 为 None 时不会被忽略
+                        pass
+                    elif target is _not_found_ or target is None:
+                        target = source
 
-                elif isinstance(source, collections.abc.MutableMapping):  # 合并 dict
-                    for key, value in source.items():
-                        target = Path._op_update(target, as_path(key), value, _idempotent=_idempotent)
-                    # else:
-                    #     if target is None or target is _not_found_:
-                    #         target = dict()
+                    elif isinstance(target, collections.abc.MutableSequence):
+                        # if idempotent:
+                        #     target = []
 
-                elif target is _not_found_  or _idempotent is True:  # 幂等操作，直接替换对象 target
-                    target = source
+                        if extend and isinstance(source, list) and not isinstance(source, str):
+                            target.extend(source)
+                        else:
+                            target.append(source)
 
-                elif isinstance(target, collections.abc.MutableSequence):  # 合并 sequence
-                    if isinstance(source, collections.abc.Sequence):
-                        target.extend(source)
+                    elif isinstance(source, dict):  # 合并 dict
+                        try:
+                            for key, value in source.items():
+                                target = Path._do_update(target, as_path(key)[:], value, **kwargs)
+                        except Exception as error:
+                            raise error
+
+                    elif idempotent:
+                        target = source
+
+                    elif isinstance(source, list) and extend:
+                        target = [target, *source]
+
                     else:
-                        target.append(source)
-
-                elif isinstance(source, collections.abc.Sequence):
-                    target = [target, *source]
-
-                else:
-                    target = [target, source]
+                        target = [target, source]
 
         else:
             key = path[0]
-
-            if isinstance(key, str) and key.isdigit():
-                key = int(key)
 
             if target is _not_found_ or target is None:
                 target = {} if isinstance(key, str) else []
 
             if isinstance(key, str) and key.isidentifier() and hasattr(target, key):
                 attr = getattr(target, key, _not_found_)
-                attr_ = Path._op_update(attr, path[1:], *args, **kwargs)
+                attr_ = Path._do_update(attr, path[1:], *args, **kwargs)
                 if attr_ is not attr:
                     setattr(target, key, attr_)
 
             elif isinstance(target, collections.abc.MutableMapping):
-                target[key] = Path._op_update(target.get(key, _not_found_), path[1:], *args, **kwargs)
+                target[key] = Path._do_update(target.get(key, _not_found_), path[1:], *args, **kwargs)
 
             elif isinstance(target, collections.abc.MutableSequence):
                 if isinstance(key, int):
                     require_length = key
+
                 elif isinstance(key, slice):
                     require_length = slice.stop
+
                 else:
                     require_length = None
 
                 if require_length is not None and require_length >= (len(target)):
                     target.extend([_not_found_] * (key - len(target) + 1))
 
-                if isinstance(key, slice):
-                    target[key] = [Path._op_update(obj, path[1:], *args, **kwargs) for obj in target[key]]
+                if isinstance(key, int):
+                    target[key] = Path._do_update(target[key], path[1:], *args, **kwargs)
+                elif isinstance(key, slice):
+                    target[key] = [Path._do_update(obj, path[1:], *args, **kwargs) for obj in target[key]]
 
                 elif isinstance(key, dict):
                     query = Query(key)
                     for idx, d in enumerate(target):
                         if query.check(d):
-                            target[idx] = Path._op_update(d, path[1:], *args, **kwargs)
+                            target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
+
+                elif isinstance(key, str):
+                    tag_name = getattr(target, "_identifier", None) or getattr(target, "_tag", None) or "@name"
+
+                    for idx, d in enumerate(target):
+                        if d.get(tag_name, _not_found_) == key:
+                            target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
+                    else:
+                        value = Path._do_update({tag_name: key}, path[1:], *args, **kwargs)
+                        target.append(value)
 
                 else:
-                    target[key] = Path._op_update(target[key], path[1:], *args, **kwargs)
+                    raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
+
             else:
                 raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
+
         return target
 
     @staticmethod
-    def _op_insert(target: typing.Any, pth: list, *args, **kwargs) -> typing.Any:
-        return Path._op_update(target, pth, *args, _idempotent=False, **kwargs)
-
-    # elif value is _not_found_:
-    #     return target
-
-    # elif key is None:
-
-    #     if target is _not_found_:
-    #         target = value
-    #     elif not isinstance(target, (list, dict)):
-    #         target = [target, value]
-    #         key = 1
-    #     elif isinstance(target, list):
-    #         key = len(target)
-    #         if isinstance(value, list):
-    #             target.extend(value)
-    #         else:
-    #             target.append(value)
-
-    #     elif isinstance(target, dict):
-    #         if not isinstance(value, dict):
-    #             target = value
-    #         else:
-    #             for k, v in value.items():
-    #                 Path._op_insert(target, k, v, *args, **kwargs)
-
-    # elif isinstance(key, int):
-    #     if target is _not_found_:
-    #         target = [_not_found_]*(key+1)
-    #     elif not isinstance(target, list):
-    #         target = [target]+[_not_found_]*(key)
-    #     elif key > len(target):
-    #         target += [_not_found_]*(key-len(target)+1)
-    #     target[key], _ = Path._op_insert(target[key], None, value)
-    # elif isinstance(key, str):
-    #     if target is _not_found_:
-    #         target = {}
-    #     elif not isinstance(target, dict):
-    #         raise ValueError(f"Can not insert {key} into {target}")
-    #     target[key], _ = Path._op_insert(target.get(key, _not_found_), None, value)
-    # else:
-    #     raise NotImplementedError(f"Not implemented key! '{key}'")
-    # return target, key
-
-    @staticmethod
-    def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
-        if len(args) + len(kwargs) > 0:
-            logger.warning(f"Ignore {args} {kwargs}")
-
-        if isinstance(key, (str, int, slice)):
-            try:
-                del target[key]
-            except Exception as error:
-                success = False
+    def _do_for_each(source, path, *args, level=0, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        if level < 0:
+            yield None, source
+        elif len(path) == 0:
+            if isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
+                yield from enumerate(source)
+            elif isinstance(source, collections.abc.Mapping):
+                yield from source.items()
             else:
-                success = True
+                yield None, source
         else:
-            raise NotImplementedError(f"{key}")
-        return target, 1
+            key = path[0]
+
+            if key is Path.tags.children:
+                if isinstance(source, collections.abc.Mapping):
+                    for k, v in source.items():
+                        yield (k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs))
+
+                elif isinstance(source, collections.abc.Iterable):
+                    for idx, v in enumerate(source):
+                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+            elif key is Path.tags.slibings:
+                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
+
+                if isinstance(parent, collections.abc.Mapping):
+                    for k, v in parent.items():
+                        if v is source:
+                            continue
+                        yield k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+                elif isinstance(parent, collections.abc.Iterable):
+                    for idx, v in enumerate(parent):
+                        if v is source:
+                            continue
+                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+            elif key is Path.tags.ancestors:
+                key = ""
+                while source is not None and source is not _not_found_:
+                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                    if res is not _not_found_:
+                        yield key + "/".join(path[1:]), res
+                        break
+                    source = getattr(source, "_parent", _not_found_)
+                    key += "../"
+
+            elif key is Path.tags.descendants:
+                if isinstance(source, collections.abc.Mapping):
+                    for i, v in source.items():
+                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
+                            yield f"{i}/{j}", s
+                elif isinstance(source, collections.abc.Iterable):
+                    for i, v in enumerate(source):
+                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
+                            yield f"{i}/{j}", s
+                else:
+                    obj = Path._do_fetch(source, [key], default_value=_not_found_)
+                    yield from Path._do_for_each(obj, path[1:], *args, **kwargs)
+
+            elif isinstance(key, Query):
+                raise NotImplementedError(f"Not implemented! {path}")
+
+            else:
+                source = Path._do_fetch(source, [key], default_value=_not_found_)
+
+                for p, v in Path._do_for_each(source, path[1:], *args, level=level, **kwargs):
+                    yield p, v
+                    if p is None:
+                        break
 
     @staticmethod
-    def _op_is_leaf(target: typing.Any, *args, **kwargs) -> bool:
-        if target is _not_found_:
-            return _not_found_
+    def _do_fetch(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
+        if not isinstance(path, list):
+            raise TypeError(path)
+        if len(path) > 0:
+            key = path[0]
+
+            if source is _not_found_ or source is None:
+                res = source
+
+            elif len(path) > 1 and path[1] is Path.tags.next:
+                if isinstance(key, int):
+                    new_key = key + 1
+                else:
+                    raise NotImplementedError(f"{type(source)} {path}")
+
+                res = Path._do_fetch(source, [new_key] + path[2:], *args, **kwargs)
+
+            elif len(path) > 1 and path[1] is Path.tags.prev:
+                if isinstance(key, int):
+                    new_key = key - 1
+                else:
+                    raise NotImplementedError(f"{type(source)} {path}")
+
+                res = Path._do_fetch(source, [new_key] + path[2:], *args, **kwargs)
+
+            elif key is Path.tags.current:
+                res = Path._do_fetch(source, path[1:], *args, **kwargs)
+
+            elif key is Path.tags.parent:
+                res = Path._do_fetch(getattr(source, "_parent", _not_found_), path[1:], *args, **kwargs)
+
+            elif key is Path.tags.ancestors:
+                # 逐级查找上层 _parent, 直到找到
+                obj = source
+
+                while obj is not None and obj is not _not_found_:
+                    if not isinstance(obj, collections.abc.Sequence):
+                        res = Path._do_fetch(obj, path[1:], *args, **kwargs)
+                        if res is not _not_found_:
+                            break
+                    obj = Path._do_fetch(obj, [Path.tags.parent], default_value=_not_found_)
+                else:
+                    res = _not_found_
+
+            elif key is Path.tags.descendants:
+                # 遍历访问所有叶节点
+                if isinstance(source, collections.abc.Mapping):
+                    res = {
+                        k: Path._do_fetch(v, [Path.tags.descendants] + path[1:], *args, **kwargs)
+                        for k, v in source.items()
+                    }
+
+                elif isinstance(source, collections.abc.Iterable):
+                    res = [Path._do_fetch(v, [Path.tags.descendants] + path[1:], *args, **kwargs) for v in source]
+
+                else:
+                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
+
+            elif key is Path.tags.children:
+                if isinstance(source, collections.abc.Mapping):
+                    res = {k: Path._do_fetch(v, path[1:], *args, **kwargs) for k, v in source.items()}
+
+                elif isinstance(source, collections.abc.Iterable):
+                    res = [Path._do_fetch(v, path[1:], *args, **kwargs) for v in source]
+
+                else:
+                    res = []
+
+            elif key is Path.tags.slibings:
+                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
+
+                if isinstance(parent, collections.abc.Mapping):
+                    res = {
+                        k: Path._do_fetch(v, path[1:], *args, **kwargs) for k, v in parent.items() if v is not source
+                    }
+
+                elif isinstance(parent, collections.abc.Iterable):
+                    res = [Path._do_fetch(v, path[1:], *args, **kwargs) for v in parent if v is not source]
+
+                else:
+                    res = []
+
+            elif isinstance(key, str) and key.isidentifier() and hasattr(source, key):
+                res = Path._do_fetch(getattr(source, key), path[1:], *args, **kwargs)
+
+            elif isinstance(source, collections.abc.Mapping):
+                res = Path._do_fetch(source.get(key, _not_found_), path[1:], *args, **kwargs)
+
+            elif isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
+                if isinstance(key, int):
+                    if len(source) < key:
+                        res = _not_found_
+                    else:
+                        res = Path._do_fetch(source[key], path[1:], *args, **kwargs)
+
+                elif isinstance(key, slice):
+                    res = [Path._do_fetch(s, path[1:], *args, **kwargs) for s in source[key]]
+
+                elif isinstance(key, str):
+                    tag_name = getattr(source, "_identifier", None) or getattr(source, "_tag", None) or "@name"
+                    pth = Path(tag_name)
+                    for d in source:
+                        if pth.get(d, _not_found_) == key:
+                            res = Path._do_fetch(d, path[1:], *args, **kwargs)
+                            break
+                    else:
+                        res = _not_found_
+                else:
+                    query = Query(key)
+                    res = [Path._do_fetch(d, path[1:], *args, **kwargs) for d in source if query.check(d)]
+
+            else:
+                res = _not_found_
+
+            if res is _not_found_ and len(args) > 0 and (isinstance(args[0], Path.tags) or callable(args[0])):
+                res = Path._apply_op(_not_found_, *args, **kwargs)
+
+        elif len(args) == 0 or args[0] is Path.tags.fetch or args[0] is None:
+            res = source
+
+        elif isinstance(args[0], Path.tags) or callable(args[0]):
+            res = Path._apply_op(source, *args, **kwargs)
+
         else:
-            return not isinstance(target, (dict, list))
+            res = source
+            if len(args) > 0:
+                raise RuntimeError(f"ignore {args} {kwargs}")
+
+        if res is _not_found_:
+            res = kwargs.pop("default_value", _not_found_)
+
+        return res
+
+    ####################################################
+    # operation
 
     @staticmethod
-    def _op_is_list(target: typing.Any, *args, **kwargs) -> bool:
-        if target is _not_found_:
-            return _not_found_
-        else:
-            return isinstance(target, list) or (isinstance(target, dict) and "@id" in target)
+    def _op_is_leaf(source: typing.Any, *args, **kwargs) -> bool:
+        return not isinstance(source, (collections.abc.Mapping, collections.abc.Sequence))
 
     @staticmethod
-    def _op_is_dict(target: typing.Any, *args, **kwargs) -> bool:
-        if target is _not_found_:
-            return _not_found_
-        else:
-            return isinstance(target, dict)
+    def _op_is_list(source: typing.Any, *args, **kwargs) -> bool:
+        return isinstance(source, collections.abc.Sequence)
 
     @staticmethod
-    def _op_check(target: typing.Any, query, *args, **kwargs) -> bool:
-        if query is None:
-            return True
-        # elif not isinstance(target, collections.abc.Mapping):
-        #     raise TypeError(type(target))
-        elif not isinstance(query, collections.abc.Mapping):
-            raise TypeError(type(query))
-
-        return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
+    def _op_is_dict(source: typing.Any, *args, **kwargs) -> bool:
+        return isinstance(source, collections.abc.Mapping)
 
     @staticmethod
-    def _op_check_type(target: typing.Any, key, tp, *args, **kwargs) -> bool:
-        target = Path._op_fetch(target, key, default_value=_not_found_)
-        return isinstance_generic(target, tp)
+    def _op_check_type(source: typing.Any, tp, *args, **kwargs) -> bool:
+        return isinstance_generic(source, tp)
 
     @staticmethod
-    def _op_count(target: typing.Any, *args, **kwargs) -> int:
-        if target is _not_found_:
+    def _op_count(source: typing.Any, *args, **kwargs) -> int:
+        if source is _not_found_:
             return 0
-        elif not isinstance(target, collections.abc.Sequence) or isinstance(target, (str, array_type)):
-            return 1
+        elif isinstance(source, collections.abc.Sequence) or isinstance(source, collections.abc.Mapping):
+            return len(source)
         else:
-            return len(target)
+            return 1
 
     @staticmethod
-    def _op_exists(target: typing.Any, *args, **kwargs) -> bool:
-        return target is not _not_found_
+    def _op_fetch(source: typing.Any, *args, default_value=_not_found_, **kwargs) -> bool:
+        if source is _not_found_:
+            source = default_value
+        return source
 
     @staticmethod
-    def _op_call(target, *args, **kwargs) -> typing.Any:
-        if suffix is not None:
-            raise RuntimeError(f"Can not call {target}! {suffix}")
-        elif not callable(target):
-            raise ValueError(f"Not callable! {target}")
+    def _op_exists(source: typing.Any, *args, **kwargs) -> bool:
+        return source is not _not_found_
 
-        return target(*args, **kwargs)
+    @staticmethod
+    def _op_call(source, *args, **kwargs) -> typing.Any:
+        if not callable(source):
+            logger.error(f"Not callable! {source}")
+            return _not_found_
+        else:
+            return source(*args, **kwargs)
 
     @staticmethod
     def _op_next(target, query, start: int | None = None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
@@ -1289,179 +1170,6 @@ class Path(list):
 
         else:
             raise NotImplementedError(f"Not implemented yet! {type(query)}")
-
-    @staticmethod
-    def _op_search(target: typing.Any, key, query, start=None, *args, **kwargs):
-        target = Path._op_fetch(target, key)
-
-        if start is None:
-            start = 0
-        stop = len(target)
-
-        pos = None
-
-        for idx in range(start, stop):
-            if Path._op_check(target[idx], query, *args, **kwargs):
-                pos = idx
-                break
-
-        return pos if pos is not None else _not_found_
-
-    ############################################################
-    # deprecated method
-
-    @deprecated
-    def traversal(self) -> typing.Generator[PathLike, None, None]:
-        yield from Path._traversal_path(self[:])
-
-    @deprecated
-    @staticmethod
-    def _traversal(target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
-        """
-        Traversal the target with the path, return the last regular target and the position the first non-regular path.
-        :param target: the target to traversal
-        :param path: the path to traversal
-
-        """
-        pos = -1
-        for idx, p in enumerate(path):
-            if target is None or target is _not_found_:
-                break
-            elif hasattr(target, "__entry__"):
-                break
-            elif isinstance(p, str):
-                if not isinstance(target, collections.abc.Mapping):
-                    tmp = getattr(target, p, _not_found_)
-                    if p is _not_found_:
-                        raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
-                    else:
-                        target = tmp
-                        continue
-                elif p not in target:
-                    break
-            elif isinstance(p, int):
-                if isinstance(target, array_type):
-                    target = target[p]
-                    continue
-                elif not isinstance(target, (list, tuple, collections.deque)):
-                    raise TypeError(f"Cannot traversal {p} in {(target)} ")
-                elif p >= len(target):
-                    raise IndexError(f"Index {p} out of range {len(target)}")
-            elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
-                if not isinstance(target, (array_type)):
-                    break
-            else:
-                break
-            target = target[p]
-            pos = idx
-        return target, pos + 1
-
-    MAX_SLICE_STOP = 1024
-
-    @deprecated
-    @staticmethod
-    def _traversal_path(
-        path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []
-    ) -> typing.Generator[PathLike, None, None]:
-        """
-        traversal all possible path
-        """
-        if len(path) == 0:
-            yield prefix
-            return
-        try:
-            pos = next(idx for idx, item in enumerate(path) if not isinstance(item, (int, str)))
-        except StopIteration:
-            yield path
-            return
-        prefix = prefix + path[:pos]
-        suffix = path[pos + 1 :]
-        item = path[pos]
-
-        if isinstance(item, (tuple, set)):
-            for k in item:
-                yield from Path._traversal_path(suffix, prefix + [k])
-        elif isinstance(item, collections.abc.Mapping):
-            yield from Path._traversal_path(suffix, prefix + [item])
-        elif isinstance(item, slice):
-            start = item.start if item.start is not None else 0
-            step = item.step if item.step is not None else 1
-            stop = item.stop if item.stop is not None else Path.MAX_SLICE_STOP
-
-            for k in range(start, stop, step):
-                yield from Path._traversal_path(suffix, prefix + [k])
-
-            if stop == Path.MAX_SLICE_STOP:
-                logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
-
-    @deprecated
-    @staticmethod
-    def _find(
-        target: typing.Any, path: typing.List[typing.Any], *args, **kwargs
-    ) -> typing.Generator[typing.Any, None, None]:
-        target, pos = Path._traversal(target, path)
-
-        def concate_path(p, others: list):
-            if not isinstance(p, list):
-                return [p] + others
-            else:
-                return p + others
-
-        if target is None:
-            return
-        elif len(path) == pos:
-            yield target  # target is the last node
-        elif hasattr(target.__class__, "_as_child"):
-            yield from Path._find(target._as_child(path[pos]), path[pos + 1 :], *args, **kwargs)
-        elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
-            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
-        elif isinstance(path[pos], str):
-            yield from Path._find(target.get(path[pos]), path[pos + 1 :], **kwargs)
-
-            # raise TypeError(f"{path[pos]}")
-        elif isinstance(path[pos], set):
-            yield from ((k, Path._find(target, concate_path(k, path[pos + 1 :]), *args, **kwargs)) for k in path[pos])
-        elif isinstance(path[pos], tuple):
-            yield from (Path._find(target, concate_path(k, path[pos + 1 :]), *args, **kwargs) for k in path[pos])
-        elif isinstance(path[pos], slice):
-            if isinstance(target, (array_type)):
-                yield from Path._find(target[path[pos]], path[pos + 1 :], *args, **kwargs)
-            elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
-                for item in target[path[pos]]:
-                    yield from Path._find(item, path[pos + 1 :], *args, **kwargs)
-            elif isinstance(target, (collections.abc.Mapping)):
-                target_ = {k: v for k, v in target.items() if k is not None}
-                start = path[pos].start if path[pos].start is not None else 0
-                stop = path[pos].stop if path[pos].start is not None else len(target_)
-                step = path[pos].step if path[pos].step is not None else 1
-
-                for k in range(start, stop, step):
-                    yield from Path._find(target_[k], path[pos + 1 :], *args, **kwargs)
-            # elif "default_value" in kwargs:
-            #   yield kwargs["default_value"]
-            else:
-                raise TypeError(f"Cannot slice target={(target)} path=[{path[:pos]} ^, {path[pos:]}]")
-        elif isinstance(path[pos], collections.abc.Mapping):
-            only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
-            if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
-                for element in target:
-                    if Path._match(element, path[pos]):
-                        yield from Path._find(element, path[pos + 1 :], *args, **kwargs)
-                        if only_first:
-                            break
-            # elif "default_value" in kwargs:
-            #   yield [kwargs["default_value"]]
-            else:
-                raise TypeError(f"Cannot search {type(target)}")
-        elif "default_value" in kwargs:
-            yield kwargs["default_value"]
-        else:
-            raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
-
-    @deprecated
-    @staticmethod
-    def _find_all(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
-        return Path._expand(Path._find(target, path, *args, **kwargs))
 
 
 _T = typing.TypeVar("_T")

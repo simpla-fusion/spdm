@@ -51,7 +51,7 @@ from typing_extensions import Self
 from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict, List, HTreeNode
-from .Path import update_tree, merge_tree
+from .Path import update_tree, merge_tree, Path
 from .Expression import Expression
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger, deprecated
@@ -71,8 +71,7 @@ class SpTree(Dict[HTree]):
         if setter is not None:
             setter(self, key, value)
         else:
-            # self.update({key: value})
-            self._cache = update_tree(self._cache, {key: value})
+            self._cache = Path._do_update(self._cache, [key], value)
 
     def __del_property__(self, key: str):
         self._remove(key)
@@ -149,14 +148,14 @@ class SpTree(Dict[HTree]):
             return self.__class__(d)
 
     def update(self, *args, **kwargs):
-        for other in [*args, kwargs]:
-            if isinstance(other, dict):
-                if len(other) > 0:
-                    update_tree(self, other)
-            elif isinstance(other, SpTree):
-                self._cache = update_tree(self._cache, other._cache)
-            else:
-                raise NotImplementedError(f"{type(other)}")
+        Path().update(self, *args, **kwargs)
+        # for other in [*args, kwargs]:
+        #     if isinstance(other, dict):
+        #         update_tree(self, other)
+        #     elif isinstance(other, SpTree):
+        #         self._cache = update_tree(self._cache, other._cache)
+        #     else:
+        #         raise NotImplementedError(f"{type(other)}")
 
 
 class PropertyTree(SpTree):

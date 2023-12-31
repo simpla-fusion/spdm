@@ -193,16 +193,16 @@ class Ports(typing.Dict[str, Edge]):
         return True
 
     def get_source(self, path, default_value: typing.Any = _not_found_) -> typing.Any:
-        pth = Path(path)
+        pth = as_path(path)
 
-        obj = super().get(pth[0], _not_found_)
+        edge = super().get(pth[0], _not_found_)
 
         res = None
 
-        if isinstance(obj, Edge):
-            res = obj.source.node
+        if isinstance(edge, Edge):
+            res = edge.source.node
 
-        res = pth.pop(0).get(res, default_value)
+        res = Path(pth[1:]).get(res, default_value)
 
         if res is _undefined_:
             raise KeyError(f"Target '{path}' is not found")
@@ -210,7 +210,7 @@ class Ports(typing.Dict[str, Edge]):
         return res
 
     def get_target(self, path, default_value=_undefined_) -> typing.Any:
-        pth = Path(path)
+        pth = as_path(path)
 
         obj = super().get(pth[0], _not_found_)
 
@@ -219,7 +219,7 @@ class Ports(typing.Dict[str, Edge]):
         if isinstance(obj, Edge):
             res = obj.target.node
 
-        res = pth.pop(0).get(res, default_value)
+        res = Path(pth[1:]).get(res, default_value)
 
         if res is _undefined_:
             raise KeyError(f"Target '{path}' is not found")
