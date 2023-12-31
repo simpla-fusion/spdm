@@ -265,6 +265,72 @@ class Function(Expression):
             return False
 
 
+class Polynomials(Expression):
+    """A wrapper for numpy.polynomial
+    TODO: imcomplete
+    """
+
+    def __init__(
+        self,
+        coeff,
+        *args,
+        type: str = None,
+        domain=None,
+        window=None,
+        symbol="x",
+        preprocess=None,
+        postprocess=None,
+        **kwargs,
+    ) -> None:
+        match type:
+            case "chebyshev":
+                from numpy.polynomial.chebyshev import Chebyshev
+
+                Op = Chebyshev
+            case "hermite":
+                from numpy.polynomial.hermite import Hermite
+
+                Op = Hermite
+            case "hermite":
+                from numpy.polynomial.hermite_e import HermiteE
+
+                Op = HermiteE
+            case "laguerre":
+                from numpy.polynomial.laguerre import Laguerre
+
+                Op = Laguerre
+            case "legendre":
+                from numpy.polynomial.legendre import Legendre
+
+                Op = Legendre
+            case _:  # "power"
+                import numpy.polynomial.polynomial as polynomial
+
+                Op = polynomial
+
+        op = Op(coeff, domain=domain, window=window, symbol=symbol)
+
+        super().__init__(op, *args, **kwargs)
+        self._preprocess = preprocess
+        self._postprocess = postprocess
+
+    def __eval__(self, x: array_type | float, *args, **kwargs) -> array_type | float:
+        if len(args) + len(kwargs) > 0:
+            logger.warning(f"Ignore arguments {args} {kwargs}")
+
+        if not isinstance(x, (array_type, float)):
+            return super().__call__(x)
+        if self._preprocess is not None:
+            x = self._preprocess(x)
+
+        y = self._op(x)
+
+        if self._postprocess is not None:
+            y = self._postprocess(y)
+
+        return y
+
+
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
     if len(args) == 0 and isinstance(y, Function):
         return y

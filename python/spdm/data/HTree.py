@@ -75,6 +75,9 @@ class HTreeNode:
 
         self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
+        if self._metadata is None:
+            pass
+
     def __copy__(self) -> Self:
         other = object.__new__(self.__class__)
         other._cache = copy(self._cache)
@@ -728,6 +731,9 @@ class Dict(Container[_T]):
         ).exists
 
 
+collections.abc.MutableMapping.register(Dict)
+
+
 class List(Container[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -775,3 +781,6 @@ class List(Container[_T]):
                 value.dump(_entry.child(idx), **kwargs)
             else:
                 _entry.child(idx).insert(value)
+
+
+collections.abc.MutableSequence.register(List)

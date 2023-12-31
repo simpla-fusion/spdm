@@ -275,7 +275,7 @@ class Path(list):
         return self.__str__().__hash__()
 
     def __copy__(self) -> Path:
-        return self.__class__(self[:])
+        return self.__class__(deepcopy(self[:]))
 
     def as_url(self) -> str:
         return Path._to_str(self)
@@ -299,10 +299,12 @@ class Path(list):
     @property
     def parent(self) -> Path:
         if self.is_root:
-            raise RuntimeError("Root node hasn't parents")
-        other = copy(self)
-        other.pop()
-        return other
+            logger.warning("Root node hasn't parents")
+            return self
+        else:
+            other = copy(self)
+            other.pop()
+            return other
 
     @property
     def children(self) -> Path:
@@ -331,6 +333,22 @@ class Path(list):
 
     def extend(self, d: list) -> Path:
         return Path._resolve(d, self)
+
+    def with_suffix(self, pth: str) -> Path:
+        pth = Path(pth)
+        if len(self) == 0:
+            return pth
+        else:
+            res = copy(self)
+            if isinstance(res[-1], str) and isinstance(pth[0], str):
+                res[-1] += pth[0]
+                res.extend(pth[1:])
+            else:
+                res.extend(pth[:])
+        return res
+
+    def pop(self, idx) -> Path:
+        return Path(copy(self[:]).pop(idx))
 
     def __truediv__(self, p) -> Path:
         return copy(self).append(p)
@@ -1018,104 +1036,84 @@ class Path(list):
         return target
 
     @staticmethod
-    def _op_update(target: typing.Any, pth: list, *args, _idempotent=True, **kwargs) -> typing.Any:
-        if len(pth) == 0:
-            if len(kwargs) > 0:
-                sources = [*args, kwargs]
-            else:
-                sources = args
+    def _op_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
+        _idempotent = kwargs.get("_idempotent", True)
+
+        if len(path) == 0:
+            others = {k: kwargs.pop(k) for k in list(kwargs.keys()) if not k.startswith("_")}
+
+            sources = [*args, others]
+
             for source in sources:
-                if source is _not_found_:  # 不更新
+                if source is _not_found_:
+                    # 不更新
+                    # @NOTE 当 source 为 None 时不会被忽略
                     continue
-                elif (target is _not_found_ or target is None) and not isinstance(source, dict):  # 直接替换
-                    target = source
-                elif isinstance(source, dict):  # 合并 dict
-                    # if not isinstance(target, dict) and hasattr(target.__class__, "update"):
-                    #     # target is object with update method
-                    #     target.update(source)
-                    # else:
-                    if target is _not_found_ or target is None:
-                        target = {}
 
+                elif isinstance(source, collections.abc.MutableMapping):  # 合并 dict
                     for key, value in source.items():
-                        target = Path(key).update(target, value, _idempotent=_idempotent)
+                        target = Path._op_update(target, as_path(key), value, _idempotent=_idempotent)
+                    # else:
+                    #     if target is None or target is _not_found_:
+                    #         target = dict()
 
-                elif _idempotent is True:  # 幂等操作，直接替换对象 target
+                elif target is _not_found_  or _idempotent is True:  # 幂等操作，直接替换对象 target
                     target = source
 
-                elif isinstance(target, list):  # 合并 sequence
-                    if isinstance(source, list):
+                elif isinstance(target, collections.abc.MutableSequence):  # 合并 sequence
+                    if isinstance(source, collections.abc.Sequence):
                         target.extend(source)
                     else:
                         target.append(source)
-                elif isinstance(source, list):
+
+                elif isinstance(source, collections.abc.Sequence):
                     target = [target, *source]
+
                 else:
                     target = [target, source]
 
         else:
-            key = pth[0]
+            key = path[0]
 
             if isinstance(key, str) and key.isdigit():
                 key = int(key)
 
-            if not isinstance(key, (int, slice)) and isinstance(target, list):
-                query = Query(key)
-                for idx, d in enumerate(target):
-                    if not query.check(d):
-                        continue
-                    target[idx] = Path._op_update(
-                        d,
-                        pth[1:],
-                        *args,
-                        _idempotent=_idempotent,
-                        **kwargs,
-                    )
-                #         break
-                # else:
-                #     raise KeyError(f"Can not find {key} in list {target}!")
+            if target is _not_found_ or target is None:
+                target = {} if isinstance(key, str) else []
 
-            elif isinstance(key, str):
-                if target is _not_found_ or target is None:
-                    target = {}
+            if isinstance(key, str) and key.isidentifier() and hasattr(target, key):
+                attr = getattr(target, key, _not_found_)
+                attr_ = Path._op_update(attr, path[1:], *args, **kwargs)
+                if attr_ is not attr:
+                    setattr(target, key, attr_)
 
-                if isinstance(target, dict):
-                    target[key] = Path._op_update(
-                        target.get(key, _not_found_),
-                        pth[1:],
-                        *args,
-                        _idempotent=_idempotent,
-                        **kwargs,
-                    )
-                elif key.isidentifier() and hasattr(target, key):
-                    attr = getattr(target, key, _not_found_)
-                    attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
-                    if attr_ is not attr:
-                        setattr(target, key, attr_)
+            elif isinstance(target, collections.abc.MutableMapping):
+                target[key] = Path._op_update(target.get(key, _not_found_), path[1:], *args, **kwargs)
+
+            elif isinstance(target, collections.abc.MutableSequence):
+                if isinstance(key, int):
+                    require_length = key
+                elif isinstance(key, slice):
+                    require_length = slice.stop
+                else:
+                    require_length = None
+
+                if require_length is not None and require_length >= (len(target)):
+                    target.extend([_not_found_] * (key - len(target) + 1))
+
+                if isinstance(key, slice):
+                    target[key] = [Path._op_update(obj, path[1:], *args, **kwargs) for obj in target[key]]
+
+                elif isinstance(key, dict):
+                    query = Query(key)
+                    for idx, d in enumerate(target):
+                        if query.check(d):
+                            target[idx] = Path._op_update(d, path[1:], *args, **kwargs)
 
                 else:
-                    try:
-                        obj = target[key]
-                    except Exception:
-                        raise RuntimeError(f"Can not update {target} with {key}!")
-                    else:
-                        Path._op_update(obj, pth[1:], *args, _idempotent=_idempotent, **kwargs)
-
-            elif isinstance(key, int):
-                if target is _not_found_ or target is None:
-                    target = [_not_found_] * (key + 1)
-                elif isinstance(target, collections.abc.Sequence) and key >= len(target):
-                    if key >= len(target):
-                        target = [*target] + [_not_found_] * (key - len(target) + 1)
-
-                target[key] = Path._op_update(
-                    target[key],
-                    pth[1:],
-                    *args,
-                    _idempotent=_idempotent,
-                    **kwargs,
-                )
-
+                    target[key] = Path._op_update(target[key], path[1:], *args, **kwargs)
+            else:
+                raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
         return target
 
     @staticmethod

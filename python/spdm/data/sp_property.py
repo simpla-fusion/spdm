@@ -58,7 +58,7 @@ from ..utils.logger import logger, deprecated
 from ..utils.tags import _not_found_
 
 
-class SpTree(Dict):
+class SpTree(Dict[HTree]):
     """支持 sp_property 的 Dict"""
 
     def __init__(self, *args, **kwargs) -> None:
@@ -395,7 +395,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
 
         prop.__set_name__(n_cls, _name)
 
-    setattr(n_cls, "_metadata", merge_tree(getattr(cls, "_metadata", None), kwargs))
+    setattr(n_cls, "_metadata", merge_tree(getattr(cls, "_metadata", {}), kwargs))
 
     return n_cls
 
