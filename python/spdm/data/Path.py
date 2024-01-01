@@ -719,38 +719,32 @@ class Path(list):
                 target = Path._apply_op(target, *args, **kwargs)
 
             else:
-                for source in args:
-                    if source is _not_found_:
-                        # 不更新
-                        # @NOTE 当 source 为 None 时不会被忽略
-                        pass
-                    elif target is _not_found_ or target is None:
-                        target = source
+                for value in args:
+                    if value is _not_found_:  # 空操作
+                        continue
 
-                    elif isinstance(target, collections.abc.MutableSequence):
-                        # if idempotent:
-                        #     target = []
+                    elif (value is None and idempotent) or target is _not_found_ or target is None:  # 删除或取代
+                        target = value
 
-                        if extend and isinstance(source, list) and not isinstance(source, str):
-                            target.extend(source)
+                    elif isinstance(target, collections.abc.MutableMapping):
+                        if isinstance(value, collections.abc.Mapping):
+                            for k, v in value.items():
+                                target = Path._do_update(target, as_path(k)[:], v, **kwargs)
                         else:
-                            target.append(source)
-
-                    elif isinstance(source, dict):  # 合并 dict
-                        try:
-                            for key, value in source.items():
-                                target = Path._do_update(target, as_path(key)[:], value, **kwargs)
-                        except Exception as error:
-                            raise error
+                            target = value  # 取代
 
                     elif idempotent:
-                        target = source
+                        target = value
 
-                    elif isinstance(source, list) and extend:
-                        target = [target, *source]
-
+                    elif isinstance(target, collections.abc.MutableSequence):
+                        if extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                            target.extend(value)
+                        else:
+                            target.append(value)
+                    elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                        target = [target, *value]
                     else:
-                        target = [target, source]
+                        target = [target, value]
 
         else:
             key = path[0]
@@ -997,6 +991,8 @@ class Path(list):
                             res = source[key]
                         except Exception:
                             res = _not_found_
+                        else:
+                            res = Path._do_fetch(res, path[1:], *args, **kwargs)
 
                     if res is _not_found_:
                         if isinstance(key, str) and not key.startswith(("@", "$")):

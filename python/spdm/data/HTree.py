@@ -72,7 +72,14 @@ class HTreeNode:
         if len(kwargs) > 0:
             self._metadata = merge_tree(self.__class__._metadata, kwargs)
 
-        self._cache = merge_tree(deepcopy(self._metadata.get("default_value", _not_found_)), _cache)
+        default_value = deepcopy(self._metadata.get("default_value", _not_found_))
+
+        if _cache is _not_found_:
+            _cache = default_value
+        elif isinstance(default_value, collections.abc.Mapping):
+            _cache = update_tree(default_value, _cache)
+
+        self._cache = _cache
 
     @property
     def empty(self) -> bool:
@@ -226,13 +233,6 @@ class HTree(HTreeNode):
     def __update__(self, *args, **kwargs):
         return self.update(*args, **kwargs)
 
-    def put(self, path, value):
-        return self.update(path, value, _idempotent=True)
-
-    def get(self, path: PathLike, default_value=_undefined_) -> typing.Any:
-        res = self.fetch(path, default_value=default_value)
-        return self.__missing__(path) if res is _undefined_ else res
-
     def __missing__(self, path) -> typing.Any:
         raise KeyError(f"Can not find '{path}'! ")
 
@@ -243,20 +243,31 @@ class HTree(HTreeNode):
         return self.update(*args, _idempotent=False, **kwargs)
 
     def update(self, *args, **kwargs):
-        if len(args) > 1 and isinstance(args[0], (str, int, Path)):
-            path = args[0]
-            args = args[1:]
+        match len(args):
+            case 0:
+                value = {k: kwargs.pop(k) for k in list(kwargs.keys()) if not k.startswith("_")}
+                path = None
+            case 1:
+                value = args[0]
+                path = None
+                args = []
+            case _:
+                path, value, *args = args
+        pth = Path(path)
+        if len(pth) <= 1:
+            self._cache = pth.update(self._cache, value, *args, **kwargs)
         else:
-            path = []
+            pth.update(self, value, *args, **kwargs)
+        return self
 
-        path = as_path(path)
+    # 对元素操作
 
-        if len(path) == 0:
-            return self._update(None, *args, **kwargs)
-        elif len(path) == 1:
-            return self._update(path[0], *args, **kwargs)
-        else:
-            return path.update(self, *args, **kwargs)
+    def put(self, path, value):
+        return self.update(path, value, _idempotent=True)
+
+    def get(self, path: PathLike, default_value=_undefined_) -> typing.Any:
+        res = self.fetch(path, default_value=default_value)
+        return self.__missing__(path) if res is _undefined_ else res
 
     def remove(self, path, *args, **kwargs):
         """删除节点：
@@ -497,10 +508,6 @@ class HTree(HTreeNode):
                 v = self._type_convert(v, k, _entry=_entry)
                 yield k, v
 
-    def _update(self, key, *args, **kwargs):
-        self._cache = Path._do_update(self._cache, [key], *args, **kwargs)
-        return self
-
 
 def as_htree(*args, **kwargs):
     if len(args) == 0 and len(kwargs) > 0:
@@ -575,7 +582,7 @@ collections.abc.MutableMapping.register(Dict)
 
 
 class List(Container[_T]):
-    _metadata = {"default_value": []}
+    _metadata = {"default_value": [], **Container[_T]._metadata}
 
     def __copy__(self) -> Self:
         other = super().__copy__()

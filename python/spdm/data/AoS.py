@@ -101,7 +101,7 @@ class AoS(List[_T]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    _metadata = {"identifier": "label"}
+    _metadata = {"identifier": "label", **List[_T]._metadata}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -127,12 +127,13 @@ class AoS(List[_T]):
         else:
             return super().fetch(path, *args, **kwargs)
 
-    def update(self, path, *args, **kwargs):
-        if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
-            Path._do_update(self._cache, [path], *args, **kwargs)
-            return self
-        else:
-            return super().update(path, *args, **kwargs)
+    def update(self, *args, **kwargs):
+        Path._do_update(self._cache, [], *args, **kwargs)
+
+        # if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
+        #     return self
+        # else:
+        # return super().update(path, *args, **kwargs)
 
     def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
@@ -144,6 +145,7 @@ class AoS(List[_T]):
         for idx, d in self.children():
             if pth.get(d, _not_found_) == key:
                 res = d
+                break
         else:
             default_value = merge_tree(
                 kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
