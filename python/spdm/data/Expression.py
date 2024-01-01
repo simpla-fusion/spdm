@@ -519,16 +519,16 @@ class ConstantZero(Scalar):
     # fmt: off
     def __neg__      (self                             ) : return self
     def __add__      (self, o: NumericType | Expression) : return o
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.negative     ,  o  ) if o is not _not_found_ and o is not None else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.negative     ,  o  ) 
     def __mul__      (self, o: NumericType | Expression) : return self
     def __matmul__   (self, o: NumericType | Expression) : return self
-    def __truediv__  (self, o: NumericType | Expression) : return Scalar(np.nan)
-    def __pow__      (self, o: NumericType | Expression) : return Scalar(np.nan)
+    def __truediv__  (self, o: NumericType | Expression) : return self
+    def __pow__      (self, o: NumericType | Expression) : return self
     def __radd__     (self, o: NumericType | Expression) : return o
     def __rsub__     (self, o: NumericType | Expression) : return o
     def __rmul__     (self, o: NumericType | Expression) : return self
     def __rmatmul__  (self, o: NumericType | Expression) : return self
-    def __rtruediv__ (self, o: NumericType | Expression) : return self
+    def __rtruediv__ (self, o: NumericType | Expression) : return Scalar(np.nan)
     def __rpow__     (self, o: NumericType | Expression) : return one
     def __abs__      (self                             ) : return self
     # fmt: on

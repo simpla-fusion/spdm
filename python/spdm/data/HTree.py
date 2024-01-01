@@ -166,7 +166,7 @@ class HTreeNode:
 
     @property
     def __name__(self) -> str:
-        return self._metadata.get("name", "unnamed")
+        return self._metadata.get("name", None) or self.__class__.__name__
 
     @property
     def __value__(self) -> typing.Any:

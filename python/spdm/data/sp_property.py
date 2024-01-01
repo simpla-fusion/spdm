@@ -43,6 +43,7 @@ from __future__ import annotations
 import pprint
 import inspect
 import typing
+import collections.abc
 from copy import deepcopy, copy
 from _thread import RLock
 from enum import Enum
@@ -125,20 +126,22 @@ class SpTree(Dict[HTree]):
 
     @staticmethod
     def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
-        if isinstance(obj, AoS):
+        if isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
             return [SpTree._clone(o, func) for o in obj]
         elif isinstance(obj, SpTree):
             cache = {}
             for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
                 if value.getter is not None:
                     continue
-                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
+                value=getattr(obj, k, _not_found_)
+                if value is not _not_found_:
+                    cache[k] = SpTree._clone(value, func)
 
             return cache
-        elif func is not None:
+        elif callable(func):
             return func(obj)
         else:
-            return obj
+            return copy(obj)
 
     def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> Self:
         if not callable(func):

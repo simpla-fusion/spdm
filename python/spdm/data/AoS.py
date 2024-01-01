@@ -112,6 +112,9 @@ class AoS(List[_T]):
         other._identifier = self._identifier
         return other
 
+    def __getitem__(self, path) -> _T:
+        return super().__getitem__(path)
+
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
         entry.insert([{}] * len(self._cache))
