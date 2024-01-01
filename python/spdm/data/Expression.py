@@ -461,10 +461,15 @@ class Variable(Expression):
     def __call__(self, *args, **kwargs):
         if all([isinstance(a, Variable) for a in args]):
             res = self
+        elif len(args) == 1 and isinstance(args[0], HTree):
+            pth = Path(self.__name__)
+            res = pth.get(args[0], _not_found_)
+            if res is _not_found_:
+                res = pth.get(kwargs, _not_found_)
+            if res is _not_found_:
+                raise RuntimeError(f"Can not get variable {self.__name__}")
         elif self._idx < len(args):
             res = args[self._idx]
-        elif isinstance(args[0], HTree):
-            res = Path(self.__name__).fetch(args[0])
         elif self.__name__.isidentifier():
             res = kwargs.get(self.__name__)
         else:

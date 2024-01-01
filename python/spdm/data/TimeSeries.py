@@ -45,12 +45,15 @@ class TimeSeriesAoS(List[_TSlice]):
       3. cache 数据自动写入 entry 落盘
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, cache_depth=3, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        if self._cache is _not_found_ or self._cache is None:
+            self._cache = [] 
 
         self._entry_cursor = None
         self._cache_cursor = len(self._cache) - 1
-        self._cache_depth = kwargs.pop("cache_depth", 3)
+        self._cache_depth = cache_depth
 
         if self._cache_cursor + 1 < self._cache_depth:
             self._cache += [_not_found_] * (self._cache_depth - self._cache_cursor - 1)

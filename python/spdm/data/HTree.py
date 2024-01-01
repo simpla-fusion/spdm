@@ -69,15 +69,12 @@ class HTreeNode:
 
         self._entry = open_entry(_entry)
 
-        if len(kwargs) > 0:
-            self._metadata = merge_tree(self.__class__._metadata, kwargs)
+        self._metadata = deepcopy({**self.__class__._metadata, **kwargs})
 
-        default_value = deepcopy(self._metadata.get("default_value", _not_found_))
+        default_value = self._metadata.pop("default_value", _not_found_)
 
         if _cache is _not_found_:
             _cache = default_value
-        elif isinstance(default_value, collections.abc.Mapping):
-            _cache = update_tree(default_value, _cache)
 
         self._cache = _cache
 
@@ -557,7 +554,10 @@ class Container(HTree, typing.Generic[_T]):
 
 
 class Dict(Container[_T]):
-    _metadata = {"default_value": {}}
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if self._cache is _not_found_:
+            self._cache = {}
 
     def __copy__(self) -> Self:
         other = super().__copy__()
@@ -582,7 +582,10 @@ collections.abc.MutableMapping.register(Dict)
 
 
 class List(Container[_T]):
-    _metadata = {"default_value": [], **Container[_T]._metadata}
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if self._cache is _not_found_:
+            self._cache = []
 
     def __copy__(self) -> Self:
         other = super().__copy__()
