@@ -645,6 +645,26 @@ class Path(list):
         return Path._do_update(target, self[:], *args, _idempotent=False, **kwargs)
 
     # 幂等
+    def update(self, target: typing.Any, *args, _idempotent=True, **kwargs) -> typing.Any:
+        """
+        根据路径（self）更新 target 中的元素。
+        当路径指向位置为空时，创建（create）元素
+        当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 update
+        当路径指向位置为空时，用新的值替代（replace）元素
+
+        对应 RESTful 中的 put， 幂等操作
+
+        返回修改后的target
+        """
+        return Path._do_update(target, self[:], *args, _idempotent=_idempotent, **kwargs)
+
+    def fetch(self, source: typing.Any, *args, **kwargs) -> typing.Any:
+        """
+        根据路径（self）查询元素。只读，不会修改 target
+        对应 RESTful 中的 read，幂等操作
+        """
+        return Path._do_fetch(source, self[:], *args, **kwargs)
+
     def remove(self, target: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         """根据路径（self）删除 target 中的元素。
 
@@ -656,52 +676,24 @@ class Path(list):
         """
         return Path._do_update(target, self[:], None, *args, _idempotent=True, **kwargs)
 
-        # # target, num = Path._exec(target, self[:-1], Path.tags.remove, self[-1]
-        # #                          if len(self) > 0 else None, *args, quiet=quiet, **kwargs)
-        # # return target, num
-        # root = {"_": target}
-
-        # path = ["_"] + self[:]
-
-        # parent, suffix = Path._get_by_path(root, path[:-1], default_value=_not_found_)
-
-        # if len(suffix) > 0:
-        #     return target, 0
-        # else:
-        #     return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
-
-    def update(self, target: typing.Any, *args, **kwargs) -> typing.Any:
-        """
-        根据路径（self）更新 target 中的元素。
-        当路径指向位置为空时，创建（create）元素
-        当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 update
-        当路径指向位置为空时，用新的值替代（replace）元素
-
-        对应 RESTful 中的 put， 幂等操作
-
-        返回修改后的target
-        """
-        return Path._do_update(target, self[:], *args, _idempotent=True, **kwargs)
-
-    def fetch(self, source: typing.Any, *args, **kwargs) -> typing.Any:
-        """
-        根据路径（self）查询元素。只读，不会修改 target
-        对应 RESTful 中的 read，幂等操作
-        """
-        return Path._do_fetch(source, self[:], *args, **kwargs)
-
-    def get(self, source: typing.Any, default_value=_not_found_):
-        return self._do_fetch(source, self[:], default_value=default_value)
-
-    def copy(self, source: typing.Any, target: typing.Any, *args, **kwargs):
-        """copy object to target"""
-        return self._do_copy(source, target, self[:], *args, **kwargs)
-
     def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
         yield from Path._do_for_each(source, self[:], *args, **kwargs)
 
     def keys(self, source) -> typing.Generator[str, None, None]:
         yield from Path._do_for_each(source, Path.tags.keys)
+
+    def copy(self, source: typing.Any, target: typing.Any = None, *args, **kwargs):
+        """copy object to target"""
+        return self._do_copy(source, target, self[:], *args, **kwargs)
+
+    # --------------------------------------------------------------------------------------
+    # 以下为简写，等价于上述方法，不应被重载
+
+    def put(self, target: typing.Any, value) -> typing.Any:
+        return self.update(target, value)
+
+    def get(self, source: typing.Any, default_value=_not_found_):
+        return self.fetch(source, default_value=default_value)
 
     # End API
     ###########################################################
@@ -974,14 +966,16 @@ class Path(list):
                 # 逐级查找上层 _parent, 直到找到
                 obj = source
 
+                default_value = kwargs.pop("default_value", _not_found_)
+
                 while obj is not None and obj is not _not_found_:
                     if not isinstance(obj, collections.abc.Sequence):
-                        res = Path._do_fetch(obj, path[1:], *args, **kwargs)
+                        res = Path._do_fetch(obj, path[1:], *args, default_value=_not_found_, **kwargs)
                         if res is not _not_found_:
                             break
                     obj = Path._do_fetch(obj, [Path.tags.parent], default_value=_not_found_)
                 else:
-                    res = _not_found_
+                    res = default_value
 
             elif key is Path.tags.descendants:
                 # 遍历访问所有叶节点
@@ -1029,10 +1023,7 @@ class Path(list):
 
             elif isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
                 if isinstance(key, int):
-                    if len(source) < key:
-                        res = _not_found_
-                    else:
-                        res = Path._do_fetch(source[key], path[1:], *args, **kwargs)
+                    res = Path._do_fetch(source[key], path[1:], *args, **kwargs)
 
                 elif isinstance(key, slice):
                     res = [Path._do_fetch(s, path[1:], *args, **kwargs) for s in source[key]]

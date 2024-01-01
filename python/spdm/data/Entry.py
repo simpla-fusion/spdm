@@ -378,6 +378,11 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
 
 
 def open_entry(entry, local_schema=None, **kwargs) -> Entry:
+    if (entry is None or isinstance(entry, Entry)) and local_schema is None:
+        if len(kwargs) > 0:
+            logger.warning(f"ignore {kwargs}")
+        return entry
+
     if entry is None or entry is _not_found_ or (isinstance(entry, list) and len(entry) == 0):
         if local_schema is None:
             return None

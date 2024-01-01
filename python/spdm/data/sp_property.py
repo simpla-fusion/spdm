@@ -147,16 +147,6 @@ class SpTree(Dict[HTree]):
             d = SpTree._clone(self, func)
             return self.__class__(d)
 
-    def update(self, *args, **kwargs):
-        Path().update(self, *args, **kwargs)
-        # for other in [*args, kwargs]:
-        #     if isinstance(other, dict):
-        #         update_tree(self, other)
-        #     elif isinstance(other, SpTree):
-        #         self._cache = update_tree(self._cache, other._cache)
-        #     else:
-        #         raise NotImplementedError(f"{type(other)}")
-
 
 class PropertyTree(SpTree):
     def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree | AoS:

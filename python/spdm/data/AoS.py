@@ -99,11 +99,11 @@ class AoS(List[_T]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def __init__(self, *args, identifier: str | None = None, **kwargs):
+    _metadata = {"identifier": "label"}
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._identifier = identifier
-        if self._identifier is None:
-            self._identifier = self._metadata.get("identifier", "label")
+        self._identifier = self._metadata.get("identifier", "label")
 
     def __copy__(self) -> Self:
         other = super().__copy__()
@@ -119,7 +119,7 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def _get(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
+    def _fetch(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
         if self._identifier is None or not isinstance(query, str) or not query.isidentifier():
             return super()._get(query, default_value=default_value, **kwargs)
@@ -129,9 +129,10 @@ class AoS(List[_T]):
         if default_value is _undefined_ or default_value is _not_found_:
             default_value = self._metadata.get("default_initial", _not_found_) or {}
 
-        pth = Path({self._identifier:query})
-        value= pth.get(self, None) 
-                
+        pth = Path({self._identifier: query})
+        value = pth.get(self, None)
+        return value
+
         # else:
         #     value = deepcopy(default_value)
         #     pth.update(value, query)

@@ -4,11 +4,12 @@ import collections.abc
 import typing
 import numpy as np
 from copy import deepcopy
-from ..utils.tags import _not_found_
 from .Entry import Entry
 from .HTree import List, HTree
-from .Path import update_tree, merge_tree
+from .Path import update_tree, merge_tree, Path
 from .sp_property import SpTree, sp_property
+from ..utils.tags import _not_found_
+from ..utils.logger import logger
 
 
 class TimeSlice(SpTree):
@@ -48,19 +49,13 @@ class TimeSeriesAoS(List[_TSlice]):
         super().__init__(*args, **kwargs)
 
         self._entry_cursor = None
-        self._cache_cursor = 0
+        self._cache_cursor = len(self._cache) - 1
         self._cache_depth = kwargs.pop("cache_depth", 3)
 
-        if self._cache is _not_found_ or self._cache is None or len(self._cache) == 0:
-            self._cache = [_not_found_] * self._cache_depth
-
+        if self._cache_cursor + 1 < self._cache_depth:
+            self._cache += [_not_found_] * (self._cache_depth - self._cache_cursor - 1)
         else:
-            if len(self._cache) < self._cache_depth:
-                self._cache += [_not_found_] * (self._cache_depth - len(self._cache))
-            else:
-                self._cache_depth = len(self._cache)
-
-            self._cache_cursor = len(self._cache) - 1
+            self._cache_depth = self._cache_cursor + 1
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
@@ -71,8 +66,8 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry.child(idx).insert(value)
 
-    def __full__(self, o: typing.Type[TimeSlice]):
-        """当循环队列满了的时候调用
+    def __missing__(self, idx: int):
+        """当循环队列满了或序号出界的时候调用
         :param o: 最老的 time_slice
         """
         pass
@@ -100,7 +95,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
     @property
     def is_initializied(self) -> bool:
-        return self._entry_cursor is not None
+        return self._cache_cursor >= 0
 
     def _find_slice_by_time(self, time: float) -> typing.Tuple[int, float]:
         if self._entry is None:
@@ -175,22 +170,18 @@ class TimeSeriesAoS(List[_TSlice]):
 
         current = self._cache[self._cache_cursor]
 
-        if isinstance(current, dict):
-            time = current.get("time", None)
-        else:
-            time = getattr(current, "time", None)
-
-        if time is None:
-            time = 0.0
+        time = Path("time").get(current, 0.0)
 
         self._entry_cursor, time_hint = self._find_slice_by_time(time)
 
-        default_value = self._metadata.get("default_value", {})
+        default_value = deepcopy(self._metadata.get("default_initial_value", {}))
 
         if time_hint is not None:
             time = time_hint
 
-        self._cache[self._cache_cursor] = update_tree(deepcopy(default_value), current, {"time": time})
+        current = update_tree(default_value, current, {"time": time})
+
+        self._cache[self._cache_cursor] = current
 
     def refresh(self, *args, **kwargs) -> typing.Type[TimeSeriesAoS]:
         if not self.is_initializied:
