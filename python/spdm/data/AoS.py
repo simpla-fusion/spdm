@@ -5,9 +5,11 @@ import typing
 from copy import deepcopy
 from typing_extensions import Self
 
+from spdm.data.HTree import HTree
+
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path, OpTags, update_tree
+from .Path import Path, PathLike, as_path, OpTags, update_tree, merge_tree
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, get_args, get_type_hint
 
@@ -87,7 +89,7 @@ class QueryResult(HTree):
                 else:
                     entry = None
 
-                yield self._as_child(value, idx, entry=entry)
+                yield self._type_convert(value, idx, entry=entry)
 
 
 class AoS(List[_T]):
@@ -119,19 +121,39 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def _fetch(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
+    def fetch(self, path, *args, **kwargs) -> _T:
+        if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
+            return self._fetch(path, *args, **kwargs)
+        else:
+            return super().fetch(path, *args, **kwargs)
+
+    def update(self, path, *args, **kwargs):
+        if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
+            Path._do_update(self._cache, [path], *args, **kwargs)
+            return self
+        else:
+            return super().update(path, *args, **kwargs)
+
+    def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
-        if self._identifier is None or not isinstance(query, str) or not query.isidentifier():
-            return super()._get(query, default_value=default_value, **kwargs)
+        if self._identifier is None or not isinstance(key, str) or not key.isidentifier():
+            return super()._fetch(key, *args, **kwargs)
 
-        default_value = kwargs.pop("default_value", _undefined_)
+        pth = Path(self._identifier)
 
-        if default_value is _undefined_ or default_value is _not_found_:
-            default_value = self._metadata.get("default_initial", _not_found_) or {}
+        for idx, d in self.children():
+            if pth.get(d, _not_found_) == key:
+                res = d
+        else:
+            default_value = merge_tree(
+                kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
+            )
+            res = deepcopy(default_value)
+            res[self._identifier] = key
+            self.append(res)
+            res = self._fetch(-1, *args, **kwargs)
 
-        pth = Path({self._identifier: query})
-        value = pth.get(self, None)
-        return value
+        return res
 
         # else:
         #     value = deepcopy(default_value)

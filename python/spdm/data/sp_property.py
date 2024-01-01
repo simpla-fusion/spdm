@@ -65,7 +65,7 @@ class SpTree(Dict[HTree]):
         super().__init__(*args, **kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
-        return self._get(key, *args, **kwargs)
+        return self._fetch(key, *args, **kwargs)
 
     def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
         if setter is not None:

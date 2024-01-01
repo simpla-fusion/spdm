@@ -260,12 +260,8 @@ class Path(list):
     delimiter = "/"
     tags = OpTags
 
-    def __init__(self, path=[], force=None, **kwargs):
-        if not force:
-            path = Path._parser(path)
-        elif not isinstance(path, list):
-            path = [path]
-        super().__init__(path, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(args[0] if len(args) == 1 and isinstance(args[0], list) else Path._parser(args), **kwargs)
 
     def __repr__(self):
         return Path._to_str(self)
@@ -300,13 +296,11 @@ class Path(list):
 
     @property
     def parent(self) -> Path:
-        if self.is_root:
+        if len(self) == 0:
             logger.warning("Root node hasn't parents")
             return self
         else:
-            other = copy(self)
-            other.pop()
-            return other
+            return Path(self[:-1])
 
     @property
     def children(self) -> Path:
@@ -538,7 +532,7 @@ class Path(list):
     @staticmethod
     def _parser_iter(path: typing.Any) -> typing.Generator[PathLike, None, None]:
         if not isinstance(path, str):
-            if isinstance(path, list) or inspect.isgenerator(path):
+            if isinstance(path, collections.abc.Iterable):
                 for item in path:
                     if isinstance(item, str):
                         yield from Path._parser_iter(item)
@@ -549,9 +543,6 @@ class Path(list):
 
         elif len(path) == 0:
             pass
-
-        elif (tmp := is_int(path)) is not False:
-            yield tmp
 
         elif path.startswith("/"):
             yield Path.tags.root
@@ -572,8 +563,8 @@ class Path(list):
 
                 if key is None:
                     pass
-                elif isinstance(key, str) and key.isdigit():
-                    yield int(key)
+                elif (tmp := is_int(key)) is not False:
+                    yield tmp
                 else:
                     yield key
 
@@ -582,49 +573,9 @@ class Path(list):
                     yield Path._parser_selector(selector)
 
     @staticmethod
-    def _parser(path, target: list | None = None) -> list:
+    def _parser(path) -> list:
         """Parse the PathLike to list"""
         return [*Path._parser_iter(path)]
-
-    @deprecated
-    @staticmethod
-    def _parser_str_2022(path: str) -> list:
-        """Parse the path string to list"""
-
-        if isinstance(path, str):
-            path = path.split(Path.delimiter)
-            if path[0] == "":
-                path[0] = Path.tags.root
-        elif not isinstance(path, list):
-            path = [path]
-
-        return [Path._parser_selector(v) for v in path]
-
-    @deprecated
-    @staticmethod
-    def _parser_2022(path: PathLike) -> list:
-        """Parse the PathLike to list"""
-
-        if path is None:
-            path = []
-        elif isinstance(path, (int, np.integer)):
-            path = [int(path)]
-        elif isinstance(path, (tuple, set, slice)):
-            path = [path]
-        elif isinstance(path, str):
-            path = Path._parser_str_2022(path)
-        elif isinstance(path, list):
-            path = sum([(Path._parser_str_2022(p) if isinstance(p, str) else [Path._parser_2022(p)]) for p in path], [])
-        else:
-            path = [as_query(path)]
-
-        return Path._resolve(path, [])
-
-    def has_slice(self) -> bool:
-        return any(isinstance(q, (slice)) for q in self[:])
-
-    def has_query(self) -> bool:
-        return any(isinstance(q, (Query)) for q in self[:])
 
     ###########################################################
     # RESTful API:
@@ -760,7 +711,7 @@ class Path(list):
 
     @staticmethod
     def _do_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
-        if len(path) == 0:
+        if path is None or len(path) == 0:
             idempotent = kwargs.get("_idempotent", True)
             extend = kwargs.get("_extend", True)
 
@@ -807,7 +758,10 @@ class Path(list):
             if target is _not_found_ or target is None:
                 target = {} if isinstance(key, str) else []
 
-            if isinstance(key, str) and key.isidentifier() and hasattr(target, key):
+            if key is None:
+                target = Path._do_update(target, path[1:], *args, **kwargs)
+
+            elif isinstance(key, str) and key.isidentifier() and hasattr(target, key):
                 attr = getattr(target, key, _not_found_)
                 attr_ = Path._do_update(attr, path[1:], *args, **kwargs)
                 if attr_ is not attr:
@@ -844,7 +798,7 @@ class Path(list):
                     tag_name = getattr(target, "_identifier", None) or getattr(target, "_tag", None) or "@name"
 
                     for idx, d in enumerate(target):
-                        if d.get(tag_name, _not_found_) == key:
+                        if isinstance(d, collections.abc.Mapping) and d.get(tag_name, _not_found_) == key:
                             target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
                     else:
                         value = Path._do_update({tag_name: key}, path[1:], *args, **kwargs)
@@ -862,7 +816,7 @@ class Path(list):
     def _do_for_each(source, path, *args, level=0, **kwargs) -> typing.Generator[typing.Any, None, None]:
         if level < 0:
             yield None, source
-        elif len(path) == 0:
+        elif path is None or len(path) == 0:
             if isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
                 yield from enumerate(source)
             elif isinstance(source, collections.abc.Mapping):
@@ -872,7 +826,10 @@ class Path(list):
         else:
             key = path[0]
 
-            if key is Path.tags.children:
+            if key is None:
+                yield from Path._do_for_each(source, path[1:], *args, level=level, **kwargs)
+
+            elif key is Path.tags.children:
                 if isinstance(source, collections.abc.Mapping):
                     for k, v in source.items():
                         yield (k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs))
@@ -934,10 +891,14 @@ class Path(list):
     def _do_fetch(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
         if not isinstance(path, list):
             raise TypeError(path)
-        if len(path) > 0:
+
+        if path is not None and len(path) > 0:
             key = path[0]
 
-            if source is _not_found_ or source is None:
+            if key is None:
+                res = Path._do_fetch(source, path[1:], *args, **kwargs)
+
+            elif source is _not_found_ or source is None:
                 res = source
 
             elif len(path) > 1 and path[1] is Path.tags.next:
@@ -1028,18 +989,28 @@ class Path(list):
                 elif isinstance(key, slice):
                     res = [Path._do_fetch(s, path[1:], *args, **kwargs) for s in source[key]]
 
-                elif isinstance(key, str):
-                    tag_name = getattr(source, "_identifier", None) or getattr(source, "_tag", None) or "@name"
-                    pth = Path(tag_name)
-                    for d in source:
-                        if pth.get(d, _not_found_) == key:
-                            res = Path._do_fetch(d, path[1:], *args, **kwargs)
-                            break
-                    else:
-                        res = _not_found_
                 else:
-                    query = Query(key)
-                    res = [Path._do_fetch(d, path[1:], *args, **kwargs) for d in source if query.check(d)]
+                    res = _not_found_
+                    if not isinstance(source, list):
+                        # 先尝试默认的 __getitem__
+                        try:
+                            res = source[key]
+                        except Exception:
+                            res = _not_found_
+
+                    if res is _not_found_:
+                        if isinstance(key, str) and not key.startswith(("@", "$")):
+                            tag_name = getattr(source, "_identifier", None) or getattr(source, "_tag", None) or "@name"
+                            query = Query({tag_name: key})
+                        else:
+                            query = Query(key)
+
+                        for d in source:
+                            if query.check(d):
+                                res = Path._do_fetch(d, path[1:], *args, **kwargs)
+                                break
+                        else:
+                            res = _not_found_
 
             else:
                 res = _not_found_

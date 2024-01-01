@@ -9,7 +9,7 @@ from spdm.data.Functor import Functor
 
 from spdm.utils.typing import ArrayType
 from .Entry import Entry
-from .HTree import HTreeNode
+from .HTree import HTreeNode, HTree
 from .Domain import DomainBase
 from .Path import update_tree, Path
 from .Functor import Functor, DerivativeOp
@@ -194,7 +194,10 @@ class Expression(HTreeNode):
                 res = expr.__class__.__name__
             vargs.append(res)
 
-        if isinstance(self._op, np.ufunc):
+        if (op_tag := self._metadata.get("name", None)) is not None:
+            res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
+
+        elif isinstance(self._op, np.ufunc):
             op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__name__)
 
             if self._op.nin == 1:
@@ -458,12 +461,16 @@ class Variable(Expression):
     def __call__(self, *args, **kwargs):
         if all([isinstance(a, Variable) for a in args]):
             res = self
-        elif isinstance(self._idx, str):
-            res = kwargs.get(self._idx, None)
         elif self._idx < len(args):
             res = args[self._idx]
+        elif isinstance(args[0], HTree):
+            res = Path(self.__name__).fetch(args[0])
+        elif self.__name__.isidentifier():
+            res = kwargs.get(self.__name__)
         else:
-            raise RuntimeError(f"Variable {self.__label__} require {self._idx+1} args, but only {args} provided!")
+            raise RuntimeError(
+                f"Variable {self.__label__} require {self._idx+1} args, or {self.__name__} in kwargs but only {args} provided!"
+            )
 
         return res
 

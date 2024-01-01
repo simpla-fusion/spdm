@@ -86,12 +86,12 @@ class TimeSeriesAoS(List[_TSlice]):
 
     @property
     def current(self) -> _TSlice:
-        return self._get(0)
+        return self._fetch(0)
 
     @property
     def previous(self) -> typing.Generator[_TSlice, None]:
         for i in range(len(self._cache)):
-            yield self._get(-(i + 1))
+            yield self._fetch(-(i + 1))
 
     @property
     def is_initializied(self) -> bool:
@@ -138,7 +138,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return pos, time
 
-    def _get(self, idx: int, *args, **kwargs) -> _TSlice:
+    def _fetch(self, idx: int, *args, **kwargs) -> _TSlice:
         if not isinstance(idx, int):
             return _not_found_
         elif not self.is_initializied:
@@ -155,7 +155,7 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry_cursor = 0
                 entry = None
-            value = self._as_child(value, cache_pos, _entry=entry, _parent=self._parent)
+            value = self._type_convert(value, cache_pos, _entry=entry, _parent=self._parent)
 
         return value
 
