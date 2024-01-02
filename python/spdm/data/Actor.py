@@ -57,7 +57,6 @@ class Actor(Pluggable):
 
         # 尝试从父节点获得 inputs
         for name, edge in self.inputs.items():
-           
             edge.source.update(getattr(parent, name, _not_found_))
 
     @property

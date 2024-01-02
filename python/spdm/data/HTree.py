@@ -81,7 +81,7 @@ class HTreeNode:
         if _cache is _not_found_:
             self._cache = default_value
         elif isinstance(default_value, collections.abc.Mapping):
-            self._cache = deepcopy(update_tree(default_value, _cache))
+            self._cache = update_tree(deepcopy(default_value), _cache)
         else:
             self._cache = _cache
 
@@ -253,7 +253,7 @@ class HTree(HTreeNode):
         if len(args) == 0:
             value = None
             path = None
-        elif args[0] is None or isinstance(args[0], (int,str, Path, pathlib.Path)):
+        elif args[0] is None or isinstance(args[0], (int, str, Path, pathlib.Path)):
             path, *args = args
             if len(args) > 0:
                 value = args[0]
@@ -416,7 +416,11 @@ class HTree(HTreeNode):
             if value is _not_found_ and _entry is not None:
                 value = _entry.get(default_value=_not_found_)
 
-            value = type_convert(_type_hint, value, default_value=default_value, **kwargs)
+            if value is _not_found_:
+                value = default_value
+
+            if value is not _not_found_:
+                value = type_convert(_type_hint, value, default_value=default_value, **kwargs)
 
         if isinstance(value, HTreeNode):
             if value._parent is None:
@@ -425,18 +429,21 @@ class HTree(HTreeNode):
             if isinstance(key, str):
                 value._metadata["name"] = key
 
-        self._cache = Path._do_update(self._cache, [key], value)
+        if value is not _not_found_:
+            self._cache = Path._do_update(self._cache, [key], value)
 
         return value
 
-    def _update(self, key: str | int, value, *args, setter=None, **kwargs):
-        if setter is not None:
-            value = setter(self, key, *args, **kwargs)
+    def _update(self, key: str | int, value, *args, _setter=None, **kwargs):
+        if _setter is not None:
+            _setter(self, key, *args, **kwargs)
 
-        if isinstance(key, str) and key.startswith("@"):
+        elif isinstance(key, str) and key.startswith("@"):
             self._metadata = Path._do_update(self._metadata, [key[1:]], value, *args, **kwargs)
+
         elif key is None:
             self._cache = Path._do_update(self._cache, [], value, *args, **kwargs)
+
         else:
             self._cache = Path._do_update(self._cache, [key], value, *args, **kwargs)
 
@@ -449,23 +456,28 @@ class HTree(HTreeNode):
         """
         self._update(key, None, *args, **kwargs)
 
-    def _fetch(self, key: str | int | None, *args, default_value=_not_found_, getter=None, **kwargs) -> typing.Any:
+    def _fetch(self, key: str | int | None, *args, default_value=_not_found_, _getter=None, **kwargs) -> typing.Any:
         """获取子节点/或属性"""
 
-        if callable(getter):
-            if get_positional_argument_count(getter) == 2 + len(args):
-                value = getter(self, key, *args)
-            else:
-                value = getter(self)
-
-        elif isinstance(key, str) and key.startswith("@"):
+        if isinstance(key, str) and key.startswith("@"):
             value = Path._do_fetch(self._metadata, [key[1:]], *args, default_value=_not_found_)
-        
+
         elif key is None:
             value = self._cache
 
+        elif isinstance(key, int):
+            if key < len(self._cache):
+                value = self._cache[key]
+            else:
+                value = _not_found_
         else:
             value = Path._do_fetch(self._cache, [key], *args, default_value=_not_found_)
+
+        if value is _not_found_ and callable(_getter):
+            if get_positional_argument_count(_getter) == 2 + len(args):
+                value = _getter(self, key, *args)
+            else:
+                value = _getter(self)
 
         if len(args) > 0:
             # args >0 意为包含 op ，直接返回结果，不进行类型转换
@@ -481,10 +493,11 @@ class HTree(HTreeNode):
             _entry = self._entry.child(key) if self._entry is not None else None
 
             value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
+
         return value
 
     def _for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
-        if self._cache is _not_found_ and self._entry is not None:
+        if (self._cache is _not_found_ or len(self._cache) == 0) and self._entry is not None:
             for k, v in self._entry.for_each(*args, **kwargs):
                 if not isinstance(v, Entry):
                     yield k, self._type_convert(v, k)

@@ -811,7 +811,7 @@ class Path(list):
                         target = Path._do_update(target, path, *args, **kwargs)
 
             else:
-                raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
+                raise TypeError(f"Can not update {type(target)} '{target}' path={path} {args} {kwargs}")
 
         return target
 
@@ -919,11 +919,12 @@ class Path(list):
 
                 else:
                     res = _not_found_
-                    if not isinstance(source, list):
+                    if not isinstance(source, list) and hasattr(source.__class__, "__getitem__"):
                         # 先尝试默认的 __getitem__
                         try:
                             res = source[key]
-                        except Exception:
+                        except Exception as error:
+                            (error)
                             res = _not_found_
                         else:
                             res = Path._do_fetch(res, path[1:], *args, **kwargs)

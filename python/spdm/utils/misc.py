@@ -414,7 +414,7 @@ def get_positional_argument_count(function):
 
     signature = inspect.signature(function)
     positional_only_parameters = [
-        parameter for parameter in signature.parameters if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        parameter for parameter in signature.parameters if parameter  == inspect.Parameter.POSITIONAL_ONLY
     ]
     return len(positional_only_parameters)
 

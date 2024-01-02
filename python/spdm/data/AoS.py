@@ -109,7 +109,10 @@ class AoS(List[_T]):
         return other
 
     def __getitem__(self, path) -> _T:
-        return super().__getitem__(path)
+        if isinstance(path, str) and path.isidentifier() or isinstance(path, int):
+            return self._fetch(path)
+        else:
+            return super().__getitem__(path)
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
@@ -120,14 +123,13 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-
     def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
         if not isinstance(key, str) or not key.isidentifier():
             return super()._fetch(key, *args, **kwargs)
 
         for idx, d in self.children():
-            if d.get(Path.id_tag_name, _not_found_) == key:
+            if d._metadata.get(Path.id_tag_name, _not_found_) == key:
                 res = d
                 break
         else:
