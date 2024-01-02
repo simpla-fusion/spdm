@@ -59,55 +59,17 @@ from ..utils.logger import logger, deprecated
 from ..utils.tags import _not_found_
 
 
-class SpTree(Dict[HTree]):
+class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
         return self._fetch(key, *args, **kwargs)
 
-    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
-        if setter is not None:
-            setter(self, key, value)
-        else:
-            self._cache = Path._do_update(self._cache, [key], value)
+    def __set_property__(self, key: str, value: typing.Any = None, *args, **kwargs) -> None:
+        self._update(key, value, *args, **kwargs)
 
-    def __del_property__(self, key: str):
-        self._remove(key)
-
-    # @deprecated("replace by __serialize__")
-    # def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
-    #     if entry is None:
-    #         entry = Entry({})
-    #         force = True
-
-    #     for k, _ in inspect.getmembers(self.__class__, is_sp_property):
-    #         try:
-    #             prop = getattr(self, k, None)
-    #             if prop is _not_found_:
-    #                 prop = None
-    #             elif hasattr(prop.__class__, "__array__"):
-    #                 prop = prop.__array__()
-
-    #         except Exception as error:
-    #             if SP_DEBUG == "CRITICAL":
-    #                 raise RuntimeError(f"Fail to dump property: {self.__class__.__name__}.{k}") from error
-    #             else:
-    #                 logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
-    #         else:
-    #             if isinstance(prop, Enum):
-    #                 prop = {"name": prop.name, "index": prop.value}
-
-    #             if isinstance(prop, HTree):
-    #                 prop.dump(entry.child(k), quiet=quiet)
-    #             else:
-    #                 entry.child(k).insert(prop)
-    #     if force:
-    #         return entry._data
-    #     else:
-    #         return entry
+    def __del_property__(self, key: str, *args, **kwargs):
+        self._remove(key, *args, **kwargs)
 
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
@@ -133,7 +95,7 @@ class SpTree(Dict[HTree]):
             for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
                 if value.getter is not None:
                     continue
-                value=getattr(obj, k, _not_found_)
+                value = getattr(obj, k, _not_found_)
                 if value is not _not_found_:
                     cache[k] = SpTree._clone(value, func)
 
@@ -153,7 +115,7 @@ class SpTree(Dict[HTree]):
 
 class PropertyTree(SpTree):
     def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree | AoS:
-        if key.startswith("__"):
+        if key.startswith("_"):
             return super().__getattribute__(key)
         else:
             res = self.__get_property__(key, *args, _type_hint=None, **kwargs)
@@ -301,31 +263,25 @@ class SpProperty:
         if self.doc == "":
             self.doc = f"{owner_cls.__name__}.{self.property_name}"
 
-    def __set__(self, instance: SpTree[_T], value: typing.Any) -> None:
+    def __set__(self, instance: SpTree, value: typing.Any) -> None:
         assert instance is not None
 
-        # type_hint, metadata = self._get_type_hint(instance.__class__, self.property_name, self.metadata)
         property_name = self.metadata.get("alias", self.property_name)
 
         if property_name is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance.__set_property__(property_name, value=value, setter=self.setter)
+            instance.__set_property__(property_name, value, setter=self.setter)
 
-    def __get__(self, instance: SpTree | None, owner_cls=None) -> _T:
+    def __get__(self, instance: SpTree, owner_cls=None) -> _T:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self
         elif not isinstance(instance, SpTree):
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpTree'.")
 
-        # 当调用 getter(obj, <name>) 时执行
-
         property_name = self.metadata.get("alias", self.property_name)
-
-        if property_name is None:
-            raise AttributeError(f"property_name is None!")
 
         with self.lock:
             value = instance.__get_property__(
@@ -334,6 +290,16 @@ class SpProperty:
                 _getter=self.getter,
                 **self.metadata,
             )
+
+            if value is _not_found_ and property_name != self.property_name:
+                value = instance.__get_property__(
+                    self.property_name,
+                    _type_hint=self.type_hint,
+                    _getter=self.getter,
+                    **self.metadata,
+                )
+                if value is not _not_found_:
+                    instance.__set_property__(property_name, value, setter=self.setter)
 
             if self.strict and value is _not_found_:
                 raise AttributeError(

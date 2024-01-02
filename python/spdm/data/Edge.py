@@ -15,6 +15,51 @@ from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type
 
 
+class Endpoint:
+    def __init__(self, node, type_hint=None) -> None:
+        if isinstance(node, Endpoint):
+            type_hint = type_hint or node.type_hint
+            node = node.node
+
+        self.node: HTreeNode = None
+
+        self.type_hint: typing.Type = None
+
+        self._time: float = None
+
+        self._iteration: int = None
+
+        # self.update(node, type_hint)
+
+    def update(self, node=None, type_hint=None):
+        if type_hint is not None and type_hint is not _not_found_:
+            self.type_hint = type_hint
+
+        if node is _not_found_ or node is None or node is self.node:
+            pass
+
+        elif not inspect.isclass(self.type_hint) or isinstance(node, self.type_hint):
+            self.node = node
+        else:
+            raise TypeError(f"{node} is not {self.type_hint}")
+
+        self._time = getattr(self.node, "time", -math.inf)
+        self._iteration = getattr(self.node, "iteration", -1)
+
+    def unlink(self):
+        self.node = None
+
+    def __copy__(self):
+        return Edge.Endpoint(self.node, self.type_hint)
+
+    @property
+    def is_changed(self) -> bool:
+        return not (
+            math.isclose(getattr(self.node, "time", 0), self._time)
+            and (getattr(self.node, "iteration", None) == self._iteration)
+        )
+
+
 class Edge:
     """`Edge` defines a connection between two `Port`s
 
@@ -27,50 +72,6 @@ class Edge:
     - description : long string
     """
 
-    class Endpoint:
-        def __init__(self, node, type_hint=None) -> None:
-            if isinstance(node, Edge.Endpoint):
-                type_hint = type_hint or node.type_hint
-                node = node.node
-
-            self.node: HTreeNode = None
-
-            self.type_hint: typing.Type = None
-
-            self._time: float = None
-
-            self._iteration: int = None
-
-            # self.update(node, type_hint)
-
-        def update(self, node=None, type_hint=None):
-            if type_hint is not None and type_hint is not _not_found_:
-                self.type_hint = type_hint
-
-            if node is _not_found_ or node is None or node is self.node:
-                pass
-
-            elif not inspect.isclass(self.type_hint) or isinstance(node, self.type_hint):
-                self.node = node
-            else:
-                raise TypeError(f"{node} is not {self.type_hint}")
-
-            self._time = getattr(self.node, "time", -math.inf)
-            self._iteration = getattr(self.node, "iteration", -1)
-
-        def unlink(self):
-            self.node = None
-
-        def __copy__(self):
-            return Edge.Endpoint(self.node, self.type_hint)
-
-        @property
-        def is_changed(self) -> bool:
-            return not (
-                math.isclose(getattr(self.node, "time", 0), self._time)
-                and (getattr(self.node, "iteration", None) == self._iteration)
-            )
-
     def __init__(
         self,
         source=None,
@@ -80,9 +81,9 @@ class Edge:
         graph=None,
         **kwargs,
     ):
-        self._source = Edge.Endpoint(source, source_type_hint)
+        self._source = Endpoint(source, source_type_hint)
 
-        self._target = Edge.Endpoint(target, target_type_hint)
+        self._target = Endpoint(target, target_type_hint)
 
         self._graph = graph
 

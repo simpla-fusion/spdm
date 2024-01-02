@@ -49,25 +49,6 @@ class Actor(Pluggable):
 
             self._inputs[name].source.update(None, tp)
 
-        # 查找父节点的输入
-        parent = self._parent
-        while isinstance(parent, AoS) and parent is not _not_found_:
-            parent = getattr(parent, "_parent", _not_found_)
-
-        p_inputs = getattr(parent, "inputs", _not_found_)
-        if isinstance(p_inputs, InPorts):
-            # 尝试从父节点获得 inputs
-            for name, edge in self.inputs.items():
-                if edge.source.node is not None:
-                    continue
-                node = p_inputs.get_source(name, _not_found_)
-
-                if node is _not_found_ or node is None:
-                    node = getattr(parent, name, _not_found_)
-
-                if node is not _not_found_ and node is not None:
-                    edge.source.update(node)
-
     @property
     def tag(self) -> str:
         return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
@@ -178,6 +159,26 @@ class Actor(Pluggable):
         更新当前状态树 （time_slice），并执行 self.iteration+=1
 
         """
+
+        # # 查找父节点的输入
+        # parent = getattr(self, "_parent", _not_found_)
+        # while isinstance(parent, AoS) and parent is not _not_found_:
+        #     parent = getattr(parent, "_parent", _not_found_)
+
+        # p_inputs = getattr(parent, "inputs", _not_found_)
+        # if isinstance(p_inputs, InPorts):
+        #     # 尝试从父节点获得 inputs
+        #     for name, edge in self.inputs.items():
+        #         if edge.source.node is not None:
+        #             continue
+        #         node = p_inputs.get_source(name, _not_found_)
+
+        #         if node is _not_found_ or node is None:
+        #             node = getattr(parent, name, _not_found_)
+
+        #         if node is not _not_found_ and node is not None:
+        #             edge.source.update(node)
+
         kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
         current = self.preprocess(*args, **kwargs)

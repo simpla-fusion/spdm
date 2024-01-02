@@ -160,7 +160,7 @@ def as_array(d: typing.Any, *args, **kwargs) -> ArrayType:
         return d
     elif hasattr(d, "__array__"):
         return d.__array__()
-    elif hasattr(d.__class__, "__value__"):
+    elif hasattr(d.__class__, "_value_"):
         return np.asarray(d.__value__, *args, **kwargs)
     else:
         return np.asarray(d, *args, **kwargs)
@@ -213,7 +213,7 @@ def as_value(obj: typing.Any) -> HTreeLike:
         return {k: as_value(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return [as_value(v) for v in obj]
-    elif hasattr(obj.__class__, "__value__"):
+    elif hasattr(obj.__class__, "_value_"):
         return obj.__value__
     else:
         return obj
@@ -243,6 +243,9 @@ def get_origin(tp: typing.Any) -> typing.Type:
     """
     获得 object，Type，typing.Generic 的原始类型
     """
+
+    if isinstance(tp, typing.types.UnionType):
+        return get_origin(typing.get_args(tp)[0])
 
     orig_class = typing.get_origin(tp)
 
@@ -318,6 +321,12 @@ def isinstance_generic(obj: typing.Any, type_hint: typing.Type) -> bool:
     if type_hint is None:
         return False
 
+    elif type_hint is _not_found_ or type_hint is typing.Any:
+        return True
+
+    elif isinstance(type_hint, typing.types.UnionType):
+        return any([isinstance_generic(obj, tp) for tp in typing.get_args(type_hint)])
+
     elif inspect.isclass(type_hint):
         return isinstance(obj, type_hint)
 
@@ -325,40 +334,45 @@ def isinstance_generic(obj: typing.Any, type_hint: typing.Type) -> bool:
 
     if inspect.isclass(type_hint) and orig_class is None:
         return isinstance(obj, type_hint)
+
     elif inspect.isclass(type_hint) and obj.__class__ == type_hint:
         return True
+
     elif orig_class is None:
         # raise RuntimeError(type_hint)
         return False
+
     elif not isinstance(obj, orig_class):
         return False
+
     elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:
         return True
+
     elif not hasattr(obj, "__orig_class__"):
         return True
+
     elif type_hint in getattr(obj, "__orig_bases__", []):
         return True
+
     else:
         return False
 
 
-def type_convert(value: typing.Any, _type_hint: typing.Type, **kwargs) -> typing.Any:
-    if value is _not_found_:
-        # raise RuntimeError(f"value is _not_found_")
+def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.Any:
+    if tp is None or tp is _not_found_ or tp is typing.Any:
         return value
 
-    elif _type_hint is typing.Any:
-        if hasattr(value, "__value__"):
-            value = value.__value__
+    elif isinstance(tp, typing.types.UnionType):
+        return type_convert(typing.get_args(tp)[0], value, *args, **kwargs)
+
+    elif isinstance_generic(value, tp):
         return value
 
-    elif _type_hint is None or isinstance_generic(value, _type_hint):
-        return value
+    elif tp in (set, list, dict):
+        return tp(value)
 
-    if (
-        not inspect.isclass(_type_hint) or not issubclass(_type_hint, (Enum, *primary_type))
-    ) and not dataclasses.is_dataclass(_type_hint):
-        return _type_hint(value, **kwargs)
+    elif (not inspect.isclass(tp) or not issubclass(tp, (Enum, *primary_type))) and not dataclasses.is_dataclass(tp):
+        return tp(value, *args, **kwargs)
 
     default_value = kwargs.pop("default_value", _not_found_)
 
@@ -371,7 +385,7 @@ def type_convert(value: typing.Any, _type_hint: typing.Type, **kwargs) -> typing
     if value is _not_found_:
         return _not_found_
 
-    origin_class = get_origin(_type_hint)
+    origin_class = get_origin(tp)
 
     if isinstance(value, origin_class):
         pass
@@ -379,12 +393,12 @@ def type_convert(value: typing.Any, _type_hint: typing.Type, **kwargs) -> typing
     elif issubclass(origin_class, array_type):
         value = as_array(value)
 
-    elif _type_hint is typing.Any:
-        if hasattr(value, "__value__"):
+    elif tp is typing.Any:
+        if hasattr(value, "_value_"):
             value = value.__value__
 
-    elif _type_hint in primary_type:
-        if hasattr(value, "__value__"):
+    elif tp in primary_type:
+        if hasattr(value, "_value_"):
             value = value.__value__
 
         if value is _not_found_:
@@ -392,27 +406,27 @@ def type_convert(value: typing.Any, _type_hint: typing.Type, **kwargs) -> typing
 
         if value is not _not_found_ and value is not None:
             try:
-                tmp = _type_hint(value)
+                tmp = tp(value)
             except Exception as error:
-                raise TypeError(f"Can not convert {value} to {_type_hint}") from error
+                raise TypeError(f"Can not convert {value} to {tp}") from error
             else:
                 value = tmp
 
-    elif dataclasses.is_dataclass(_type_hint):
-        value = as_dataclass(_type_hint, value)
+    elif dataclasses.is_dataclass(tp):
+        value = as_dataclass(tp, value)
 
     elif issubclass(origin_class, Enum):
-        if hasattr(value, "__value__"):
+        if hasattr(value, "_value_"):
             value = value.__value__
         if isinstance(value, collections.abc.Mapping):
-            value = _type_hint[value["name"]]
+            value = tp[value["name"]]
         elif isinstance(value, str):
-            value = _type_hint[value]
+            value = tp[value]
         else:
-            raise TypeError(f"Can not convert {value} to {_type_hint}")
+            raise TypeError(f"Can not convert {value} to {tp}")
 
     else:
-        raise TypeError(f"Can not convert {type(value)} to {_type_hint}")
+        raise TypeError(f"Can not convert {type(value)} to {tp}")
 
     return value
 
@@ -477,7 +491,7 @@ def dump(obj) -> typing.Any:
         return {dump(k): dump(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence):
         return [dump(v) for v in obj]
-    elif hasattr(obj, "__value__"):
+    elif hasattr(obj, "_value_"):
         return dump(obj.__value__)
     else:
         raise TypeError(f"Not support type: {type(obj)}")

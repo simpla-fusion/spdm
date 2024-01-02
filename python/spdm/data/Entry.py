@@ -94,7 +94,7 @@ class Entry(Pluggable):
     ###########################################################
 
     @property
-    def __value__(self) -> typing.Any:
+    def _value_(self) -> typing.Any:
         return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
 
     def __getitem__(self, *args) -> Entry:
@@ -382,6 +382,8 @@ def open_entry(entry, local_schema=None, **kwargs) -> Entry:
         if len(kwargs) > 0:
             logger.warning(f"ignore {kwargs}")
         return entry
+    elif isinstance(entry, list) and len(entry) == 1 and isinstance(entry[0], Entry):
+        return entry[0]
 
     if entry is None or entry is _not_found_ or (isinstance(entry, list) and len(entry) == 0):
         if local_schema is None:

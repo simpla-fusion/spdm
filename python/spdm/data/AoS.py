@@ -39,7 +39,7 @@ class QueryResult(HTree):
             return QueryResult[_VT](self._path.append(query), *args, default_value=default_value, **kwargs)
 
     @property
-    def __value__(self) -> typing.Any:
+    def _value_(self) -> typing.Any:
         value = super()._query(self._path)
         if isinstance(value, list):
             value = functools.reduce(self._default_reducer, value)
@@ -101,15 +101,11 @@ class AoS(List[_T]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    _metadata = {"identifier": "label", **List[_T]._metadata}
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._identifier = self._metadata.get("identifier", "label")
 
     def __copy__(self) -> Self:
         other = super().__copy__()
-        other._identifier = self._identifier
         return other
 
     def __getitem__(self, path) -> _T:
@@ -124,38 +120,23 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def fetch(self, path, *args, **kwargs) -> _T:
-        if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
-            return self._fetch(path, *args, **kwargs)
-        else:
-            return super().fetch(path, *args, **kwargs)
-
-    def update(self, *args, **kwargs):
-        Path._do_update(self._cache, [], *args, **kwargs)
-
-        # if isinstance(path, int) or (isinstance(path, str) and path.isidentifier()):
-        #     return self
-        # else:
-        # return super().update(path, *args, **kwargs)
 
     def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
-        if self._identifier is None or not isinstance(key, str) or not key.isidentifier():
+        if not isinstance(key, str) or not key.isidentifier():
             return super()._fetch(key, *args, **kwargs)
 
-        pth = Path(self._identifier)
-
         for idx, d in self.children():
-            if pth.get(d, _not_found_) == key:
+            if d.get(Path.id_tag_name, _not_found_) == key:
                 res = d
                 break
         else:
             default_value = merge_tree(
                 kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
             )
-            res = deepcopy(default_value)
-            res[self._identifier] = key
-            self.append(res)
+
+            self.append({Path.id_tag_name: key, **default_value})
+
             res = self._fetch(-1, *args, **kwargs)
 
         return res

@@ -96,6 +96,9 @@ class Query:
         elif isinstance(query, str) and query.startswith("$"):
             query = {".": query}
 
+        elif isinstance(query, str) and query.isidentifier():
+            query = {f"@{Path.id_tag_name}": query}
+
         elif isinstance(query, dict):
             query = {k: Query._parser(v) for k, v in query.items()}
 
@@ -113,15 +116,18 @@ class Query:
 
     @staticmethod
     def _eval_one(target, k, v) -> typing.Any:
+        res = False
         if k == "." or k is OpTags.current:
-            return Query._q_equal(target, v)
+            res = Query._q_equal(target, v)
 
         elif isinstance(k, str) and k.startswith("@"):
-            return Query._q_equal(getattr(target, k[1:], _not_found_), v) or Query._q_equal(
-                target.get(k[1:], _not_found_), v
-            )
+            if hasattr(target.__class__, k[1:]):
+                res = Query._q_equal(getattr(target, k[1:], _not_found_), v)
 
-        return True
+            elif isinstance(target, collections.abc.Mapping):
+                res = Query._q_equal(target.get(k, _not_found_), v)
+
+        return res
 
     def _eval(self, target) -> bool:
         return all([Query._eval_one(target, k, v) for k, v in self._query.items()])
@@ -257,6 +263,7 @@ class Path(list):
 
     """
 
+    id_tag_name = "name"
     delimiter = "/"
     tags = OpTags
 
@@ -596,7 +603,7 @@ class Path(list):
         return Path._do_update(target, self[:], *args, _idempotent=False, **kwargs)
 
     # 幂等
-    def update(self, target: typing.Any, *args, _idempotent=True, **kwargs) -> typing.Any:
+    def update(self, target: typing.Any, *args, **kwargs) -> typing.Any:
         """
         根据路径（self）更新 target 中的元素。
         当路径指向位置为空时，创建（create）元素
@@ -607,7 +614,7 @@ class Path(list):
 
         返回修改后的target
         """
-        return Path._do_update(target, self[:], *args, _idempotent=_idempotent, **kwargs)
+        return Path._do_update(target, self[:], *args, **kwargs)
 
     def fetch(self, source: typing.Any, *args, **kwargs) -> typing.Any:
         """
@@ -625,7 +632,7 @@ class Path(list):
 
         返回修改后的target和删除的元素的个数
         """
-        return Path._do_update(target, self[:], None, *args, _idempotent=True, **kwargs)
+        return Path._do_update(target, self[:], None, *args, **kwargs)
 
     def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
         yield from Path._do_for_each(source, self[:], *args, **kwargs)
@@ -712,22 +719,25 @@ class Path(list):
     @staticmethod
     def _do_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
         if path is None or len(path) == 0:
-            idempotent = kwargs.get("_idempotent", True)
-            extend = kwargs.get("_extend", True)
-
             if len(args) > 0 and isinstance(args[0], Path.tags):
                 target = Path._apply_op(target, *args, **kwargs)
 
             else:
+                idempotent = kwargs.get("_idempotent", True)
+                extend = kwargs.get("_extend", False)
+
                 for value in args:
                     if value is _not_found_:  # 空操作
+                        continue
+
+                    elif value is target:
                         continue
 
                     elif (value is None and idempotent) or target is _not_found_ or target is None:  # 删除或取代
                         target = value
 
                     elif isinstance(target, collections.abc.MutableMapping):
-                        if isinstance(value, collections.abc.Mapping):
+                        if isinstance(value, dict):
                             for k, v in value.items():
                                 target = Path._do_update(target, as_path(k)[:], v, **kwargs)
                         else:
@@ -737,7 +747,7 @@ class Path(list):
                         target = value
 
                     elif isinstance(target, collections.abc.MutableSequence):
-                        if extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                        if extend and isinstance(value, (list)):
                             target.extend(value)
                         else:
                             target.append(value)
@@ -755,11 +765,17 @@ class Path(list):
             if key is None:
                 target = Path._do_update(target, path[1:], *args, **kwargs)
 
-            elif isinstance(key, str) and key.isidentifier() and hasattr(target, key):
-                attr = getattr(target, key, _not_found_)
-                attr_ = Path._do_update(attr, path[1:], *args, **kwargs)
-                if attr_ is not attr:
-                    setattr(target, key, attr_)
+            elif isinstance(key, str) and key.isidentifier() and hasattr(target.__class__, key):
+                if len(path) == 1:
+                    value = Path._do_update(_not_found_, [], *args, **kwargs)
+                    setattr(target, key, value)
+
+                else:
+                    attr = getattr(target, key, _not_found_)
+                    value = Path._do_update(attr, path[1:], *args, **kwargs)
+
+                    if value is not attr:
+                        setattr(target, key, value)
 
             elif isinstance(target, collections.abc.MutableMapping):
                 target[key] = Path._do_update(target.get(key, _not_found_), path[1:], *args, **kwargs)
@@ -779,107 +795,25 @@ class Path(list):
 
                 if isinstance(key, int):
                     target[key] = Path._do_update(target[key], path[1:], *args, **kwargs)
+
                 elif isinstance(key, slice):
                     target[key] = [Path._do_update(obj, path[1:], *args, **kwargs) for obj in target[key]]
 
-                elif isinstance(key, dict):
+                else:
                     query = Query(key)
+
                     for idx, d in enumerate(target):
                         if query.check(d):
                             target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
-
-                elif isinstance(key, str):
-                    tag_name = getattr(target, "_identifier", None) or getattr(target, "_tag", None) or "@name"
-
-                    for idx, d in enumerate(target):
-                        if isinstance(d, collections.abc.Mapping) and d.get(tag_name, _not_found_) == key:
-                            target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
+                            break
                     else:
-                        value = Path._do_update({tag_name: key}, path[1:], *args, **kwargs)
-                        target.append(value)
-
-                else:
-                    raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
+                        target.append({f"@{Path.id_tag_name}": key})
+                        target = Path._do_update(target, path, *args, **kwargs)
 
             else:
                 raise TypeError(f"Can not update {type(target)} '{target}' path={path}")
 
         return target
-
-    @staticmethod
-    def _do_for_each(source, path, *args, level=0, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        if level < 0:
-            yield None, source
-        elif path is None or len(path) == 0:
-            if isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
-                yield from enumerate(source)
-            elif isinstance(source, collections.abc.Mapping):
-                yield from source.items()
-            else:
-                yield None, source
-        else:
-            key = path[0]
-
-            if key is None:
-                yield from Path._do_for_each(source, path[1:], *args, level=level, **kwargs)
-
-            elif key is Path.tags.children:
-                if isinstance(source, collections.abc.Mapping):
-                    for k, v in source.items():
-                        yield (k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs))
-
-                elif isinstance(source, collections.abc.Iterable):
-                    for idx, v in enumerate(source):
-                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
-
-            elif key is Path.tags.slibings:
-                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
-
-                if isinstance(parent, collections.abc.Mapping):
-                    for k, v in parent.items():
-                        if v is source:
-                            continue
-                        yield k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
-
-                elif isinstance(parent, collections.abc.Iterable):
-                    for idx, v in enumerate(parent):
-                        if v is source:
-                            continue
-                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
-
-            elif key is Path.tags.ancestors:
-                key = ""
-                while source is not None and source is not _not_found_:
-                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
-                    if res is not _not_found_:
-                        yield key + "/".join(path[1:]), res
-                        break
-                    source = getattr(source, "_parent", _not_found_)
-                    key += "../"
-
-            elif key is Path.tags.descendants:
-                if isinstance(source, collections.abc.Mapping):
-                    for i, v in source.items():
-                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
-                            yield f"{i}/{j}", s
-                elif isinstance(source, collections.abc.Iterable):
-                    for i, v in enumerate(source):
-                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
-                            yield f"{i}/{j}", s
-                else:
-                    obj = Path._do_fetch(source, [key], default_value=_not_found_)
-                    yield from Path._do_for_each(obj, path[1:], *args, **kwargs)
-
-            elif isinstance(key, Query):
-                raise NotImplementedError(f"Not implemented! {path}")
-
-            else:
-                source = Path._do_fetch(source, [key], default_value=_not_found_)
-
-                for p, v in Path._do_for_each(source, path[1:], *args, level=level, **kwargs):
-                    yield p, v
-                    if p is None:
-                        break
 
     @staticmethod
     def _do_fetch(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
@@ -996,8 +930,7 @@ class Path(list):
 
                     if res is _not_found_:
                         if isinstance(key, str) and not key.startswith(("@", "$")):
-                            tag_name = getattr(source, "_identifier", None) or getattr(source, "_tag", None) or "@name"
-                            query = Query({tag_name: key})
+                            query = Query({f"@{Path.id_tag_name}": key})
                         else:
                             query = Query(key)
 
@@ -1029,6 +962,81 @@ class Path(list):
             res = kwargs.pop("default_value", _not_found_)
 
         return res
+
+    @staticmethod
+    def _do_for_each(source, path, *args, level=0, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        if level < 0:
+            yield None, source
+        elif path is None or len(path) == 0:
+            if isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
+                yield from enumerate(source)
+            elif isinstance(source, collections.abc.Mapping):
+                yield from source.items()
+            else:
+                yield None, source
+        else:
+            key = path[0]
+
+            if key is None:
+                yield from Path._do_for_each(source, path[1:], *args, level=level, **kwargs)
+
+            elif key is Path.tags.children:
+                if isinstance(source, collections.abc.Mapping):
+                    for k, v in source.items():
+                        yield (k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs))
+
+                elif isinstance(source, collections.abc.Iterable):
+                    for idx, v in enumerate(source):
+                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+            elif key is Path.tags.slibings:
+                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
+
+                if isinstance(parent, collections.abc.Mapping):
+                    for k, v in parent.items():
+                        if v is source:
+                            continue
+                        yield k, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+                elif isinstance(parent, collections.abc.Iterable):
+                    for idx, v in enumerate(parent):
+                        if v is source:
+                            continue
+                        yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
+
+            elif key is Path.tags.ancestors:
+                key = ""
+                while source is not None and source is not _not_found_:
+                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                    if res is not _not_found_:
+                        yield key + "/".join(path[1:]), res
+                        break
+                    source = getattr(source, "_parent", _not_found_)
+                    key += "../"
+
+            elif key is Path.tags.descendants:
+                if isinstance(source, collections.abc.Mapping):
+                    for i, v in source.items():
+                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
+                            yield f"{i}/{j}", s
+                elif isinstance(source, collections.abc.Iterable):
+                    for i, v in enumerate(source):
+                        for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
+                            yield f"{i}/{j}", s
+                else:
+                    obj = Path._do_fetch(source, [key], default_value=_not_found_)
+                    yield from Path._do_for_each(obj, path[1:], *args, **kwargs)
+
+            elif isinstance(key, Query):
+                raise NotImplementedError(f"Not implemented! {path}")
+
+            else:
+                source = Path._do_fetch(source, [key], default_value=_not_found_)
+
+                for p, v in Path._do_for_each(source, path[1:], *args, level=level, **kwargs):
+                    yield p, v
+                    if p is None:
+                        break
 
     ####################################################
     # operation
