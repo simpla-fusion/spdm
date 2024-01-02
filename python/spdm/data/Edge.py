@@ -21,7 +21,7 @@ class Endpoint:
             type_hint = type_hint or node.type_hint
             node = node.node
 
-        self.node: HTreeNode = None
+        self.node: HTreeNode = _not_found_
 
         self.type_hint: typing.Type = None
 
@@ -193,17 +193,12 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, path, default_value: typing.Any = _not_found_) -> typing.Any:
+    def get_source(self, path, default_value: typing.Any = _undefined_) -> typing.Any:
         pth = as_path(path)
 
         edge = super().get(pth[0], _not_found_)
 
-        res = None
-
-        if isinstance(edge, Edge):
-            res = edge.source.node
-
-        res = Path(pth[1:]).get(res, default_value)
+        res = Path(pth[1:]).get(edge.source.node, default_value) if isinstance(edge, Edge) else default_value
 
         if res is _undefined_:
             raise KeyError(f"Target '{path}' is not found")
@@ -213,14 +208,9 @@ class Ports(typing.Dict[str, Edge]):
     def get_target(self, path, default_value=_undefined_) -> typing.Any:
         pth = as_path(path)
 
-        obj = super().get(pth[0], _not_found_)
+        edge = super().get(pth[0], _not_found_)
 
-        res = None
-
-        if isinstance(obj, Edge):
-            res = obj.target.node
-
-        res = Path(pth[1:]).get(res, default_value)
+        res = Path(pth[1:]).get(edge.target.node, default_value) if isinstance(edge, Edge) else default_value
 
         if res is _undefined_:
             raise KeyError(f"Target '{path}' is not found")
