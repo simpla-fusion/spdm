@@ -5,7 +5,7 @@ import typing
 from copy import deepcopy
 from typing_extensions import Self
 
-from spdm.data.HTree import HTree
+from spdm.data.HTree import HTree, HTreeNode
 
 from .Entry import Entry
 from .HTree import HTree, List, Dict
@@ -125,21 +125,16 @@ class AoS(List[_T]):
 
     def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
-        if not isinstance(key, str) or not key.isidentifier():
-            return super()._fetch(key, *args, **kwargs)
+        res = super()._fetch(key, *args, **kwargs)
 
-        for idx, d in self.children():
-            if d._metadata.get(Path.id_tag_name, _not_found_) == key:
-                res = d
-                break
-        else:
+        if len(args) == 0 and res is not _not_found_ and isinstance(key, str):
             default_value = merge_tree(
                 kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
             )
 
             self.append({Path.id_tag_name: key, **default_value})
 
-            res = self._fetch(-1, *args, **kwargs)
+            res = self._fetch(key, *args, **kwargs)
 
         return res
 

@@ -12,7 +12,7 @@ from .Expression import Expression
 from .sp_property import PropertyTree
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.typing import array_type
+from ..utils.typing import array_type, isinstance_generic
 
 
 class Endpoint:
@@ -31,17 +31,19 @@ class Endpoint:
 
         # self.update(node, type_hint)
 
-    def update(self, node=None, type_hint=None):
-        if type_hint is not None and type_hint is not _not_found_:
+    def update(self, node=_not_found_, type_hint=_not_found_):
+        if type_hint is not _not_found_:
             self.type_hint = type_hint
 
-        if node is _not_found_ or node is None or node is self.node:
-            pass
-
-        elif not inspect.isclass(self.type_hint) or isinstance(node, self.type_hint):
+        if node is not _not_found_:
             self.node = node
-        else:
-            raise TypeError(f"{node} is not {self.type_hint}")
+
+        if (
+            self.node is not _not_found_
+            and self.type_hint is not _not_found_
+            and not isinstance_generic(self.node, self.type_hint)
+        ):
+            raise RuntimeError(f"{node} is not {self.type_hint}")
 
         self._time = getattr(self.node, "time", -math.inf)
         self._iteration = getattr(self.node, "iteration", -1)
@@ -228,7 +230,15 @@ class InPorts(Ports):
         return edge
 
     def update(self, kwargs: typing.Dict[str, typing.Any]):
-        ports = [self[k].source.update(kwargs.pop(k)) for k in [*kwargs.keys()] if k in self]
+        for k in [*kwargs.keys()]:
+            if not isinstance(kwargs[k], HTreeNode):
+                continue
+            v = kwargs.pop(k)
+            if k in self:
+                self[k].source.update(v)
+            else:
+                self.link(k, v)
+
         return kwargs
 
 
@@ -242,8 +252,14 @@ class OutPorts(Ports):
         return edge
 
     def update(self, kwargs: typing.Dict[str, typing.Any]):
-        ports = [self[k].target.update(kwargs.pop(k)) for k in [*kwargs.keys()] if k in self]
-        return kwargs
+        for k in [*kwargs.keys()]:
+            if not isinstance(kwargs[k], HTreeNode):
+                continue
+            v = kwargs.pop(k)
+            if k in self:
+                self[k].target.update(v)
+            else:
+                self.link(k, v)
 
     def set(self, key, value):
         self[key].target.node = value

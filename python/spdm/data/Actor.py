@@ -47,17 +47,20 @@ class Actor(Pluggable):
                 if len(t_args) == 2 and t_args[1] is type(None):
                     tp = t_args[0]
 
-            self._inputs[name].source.update(None, tp)
+            self._inputs[name].source.update(_not_found_, tp)
 
         # 查找父节点的输入
         parent = getattr(self, "_parent", _not_found_)
 
-        while isinstance(parent, AoS) and parent is not _not_found_:
+        while isinstance(parent, HTreeNode) and not isinstance(parent, Actor):
             parent = getattr(parent, "_parent", _not_found_)
 
         # 尝试从父节点获得 inputs
         for name, edge in self.inputs.items():
-            edge.source.update(getattr(parent, name, _not_found_))
+            if parent is not None and name in parent.inputs:
+                edge.source.update(parent.inputs[name].source.node)
+            else:
+                edge.source.update(getattr(parent, name, _not_found_))
 
     @property
     def tag(self) -> str:

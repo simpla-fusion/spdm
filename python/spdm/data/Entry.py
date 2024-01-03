@@ -273,7 +273,14 @@ class ChainEntry(Entry):
                 continue
 
             for k, e in _entry.for_each(*args, **kwargs):
-                yield k, ChainEntry(e, *[o.child(k) for o in self._entrys[idx + 1 :]])
+                # 根据子节点的序号，在其他 entry 中的检索子节点
+                entry_list = [e]
+                for o in self._entrys[idx + 1 :]:
+                    t = o.child(k)
+                    if t.exists:
+                        entry_list.append(t)
+
+                yield k, ChainEntry(*entry_list)
 
     def find(self, *args, **kwargs):
         return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])

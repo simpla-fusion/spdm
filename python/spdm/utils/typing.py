@@ -368,7 +368,7 @@ def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.
     elif isinstance_generic(value, tp):
         return value
 
-    elif tp in (set, list, dict):
+    elif tp in (set, list, dict, tuple):
         return tp(value)
 
     elif (not inspect.isclass(tp) or not issubclass(tp, (Enum, *primary_type))) and not dataclasses.is_dataclass(tp):

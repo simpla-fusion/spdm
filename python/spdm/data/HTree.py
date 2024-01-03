@@ -217,10 +217,10 @@ class HTree(HTreeNode):
         return self.remove(path)
 
     def __contains__(self, key) -> bool:
-        return bool(self.fetch(key, Path.tags.exists))
+        return bool(self.fetch(key, Path.tags.exists) is True)
 
     def __len__(self) -> int:
-        return int(self.fetch(None, Path.tags.count))
+        return int(self.fetch(None, Path.tags.count) or 0)
 
     def __iter__(self) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
         """遍历 children"""
@@ -463,8 +463,13 @@ class HTree(HTreeNode):
             value = Path._do_fetch(self._metadata, [key[1:]], *args, default_value=_not_found_)
 
         elif key is None:
-            value = self._cache
-
+            if self._cache is not _not_found_:
+                if len(args) == 0:
+                    value = self._cache
+                else:
+                    value = Path._do_fetch(self._cache, [], *args)
+            else:
+                value = _not_found_
         elif isinstance(key, int):
             if key < len(self._cache):
                 value = self._cache[key]
@@ -502,7 +507,7 @@ class HTree(HTreeNode):
                 if not isinstance(v, Entry):
                     yield k, self._type_convert(v, k)
                 else:
-                    yield k, self._type_convert(None, k, _entry=v)
+                    yield k, self._type_convert(_not_found_, k, _entry=v)
 
         elif self._cache is not None:
             for k, v in Path().for_each(self._cache, *args, **kwargs):
