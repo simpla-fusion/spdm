@@ -34,7 +34,7 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
         if coordinates is not None:
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-            coordinates = [Path(c).fetch(holder) for c in coordinates.values()]
+            coordinates = [Path(c).find(holder) for c in coordinates.values()]
             if all([is_array(c) for c in coordinates]):
                 mesh = {"dims": coordinates}
 

@@ -5,18 +5,19 @@ from copy import copy, deepcopy
 import functools
 import collections.abc
 import numpy as np
-from spdm.data.Functor import Functor
 
-from spdm.utils.typing import ArrayType
-from .Entry import Entry
-from .HTree import HTreeNode, HTree
-from .Domain import DomainBase
-from .Path import update_tree, Path
-from .Functor import Functor, DerivativeOp
+from ..utils.typing import ArrayType
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
 from ..utils.logger import logger
 from ..numlib.interpolate import interpolate
+
+from .Functor import Functor
+from .Entry import Entry
+from .HTree import HTreeNode, HTree, HTreeNode 
+from .Domain import DomainBase
+from .Path import update_tree, Path
+from .Functor import Functor, DerivativeOp
 
 
 _T = typing.TypeVar("_T", float, bool, array_type, HTreeNode)
@@ -94,6 +95,17 @@ class Expression(HTreeNode):
         other._op = copy(self._op)
         other._children = copy(self._children)
         return other
+
+    def __clone__(self, *args, _parent=None, **kwargs):
+        res = self.__call__(*args, **kwargs)
+
+        if res is self:
+            res = self.__copy__()
+
+        if isinstance(res, HTreeNode):
+            res._parent = _parent
+
+        return res
 
     def __serialize__(self, dumper=None):
         logger.debug(f"TODO: __serialize__ {self}")

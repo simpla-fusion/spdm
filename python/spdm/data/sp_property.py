@@ -63,7 +63,7 @@ class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
-        return self._fetch(key, *args, **kwargs)
+        return self._find(key, *args, **kwargs)
 
     def __set_property__(self, key: str, value: typing.Any = None, *args, **kwargs) -> None:
         self._update(key, value, *args, **kwargs)
@@ -86,31 +86,15 @@ class SpTree(Dict[HTreeNode]):
 
         return super()._do_serialize(data, dumper)
 
-    @staticmethod
-    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
-        if isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-            return [SpTree._clone(o, func) for o in obj]
-        elif isinstance(obj, SpTree):
-            cache = {}
-            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
-                if value.getter is not None:
-                    continue
-                value = getattr(obj, k, _not_found_)
-                if value is not _not_found_:
-                    cache[k] = SpTree._clone(value, func)
+    def __clone__(self, *args, _parent=..., **kwargs) -> Self:
+        cache = {}
 
-            return cache
-        elif callable(func):
-            return func(obj)
-        else:
-            return copy(obj)
+        for k, value in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
+            if getattr(value, "getter", None) is None:
+                if (value := getattr(self, k, ...)) is not ...:
+                    cache[k] = HTreeNode._do_clone(value, *args, _parent=None, **kwargs)
 
-    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> Self:
-        if not callable(func):
-            return self.__copy__()
-        else:
-            d = SpTree._clone(self, func)
-            return self.__class__(d)
+        return self.__duplicate__(cache, _parent=_parent)
 
 
 class PropertyTree(SpTree):

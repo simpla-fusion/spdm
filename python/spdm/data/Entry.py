@@ -106,7 +106,7 @@ class Entry(Pluggable):
     def __delitem__(self, *args):
         return self.child(*args).remove()
 
-    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
+    def get(self, query=None, default_value=_not_found_, **kwargs) -> typing.Any:
         if query is None:
             entry = self
             args = ()
@@ -117,12 +117,7 @@ class Entry(Pluggable):
             entry = self.child(query)
             args = ()
 
-        res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
-
-        if res is _undefined_:
-            raise RuntimeError(f'Can not find "{query}" in {self}')
-        else:
-            return res
+        return entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
 
     def put(self, pth, value, *args, **kwrags) -> Entry:
         entry = self.child(pth)
@@ -210,7 +205,7 @@ class Entry(Pluggable):
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.fetch(self._data, op, *args, **kwargs)
+        return self._path.find(self._data, op, *args, **kwargs)
 
     def keys(self) -> typing.Generator[str, None, None]:
         yield from self._path.keys(self._data)
@@ -228,7 +223,11 @@ class Entry(Pluggable):
 class ChainEntry(Entry):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self._entrys: typing.List[Entry] = [(_open_entry(v, **kwargs) if not isinstance(v, Entry) else v) for v in args]
+        self._entrys: typing.List[Entry] = [
+            (_open_entry(v, **kwargs) if not isinstance(v, Entry) else v)
+            for v in args
+            if v is not _not_found_ and v is not _undefined_ and v is not None
+        ]
 
     def __copy__(self) -> ChainEntry:
         other = super().__copy__()

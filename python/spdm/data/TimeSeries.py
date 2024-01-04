@@ -24,8 +24,9 @@ class TimeSlice(SpTree):
         return self._iteration
 
     def refresh(self, *args, **kwargs):
-        self.update(*args, **kwargs)
-        self._iteration += 1
+        current = self.update(*args, **kwargs)
+        current._iteration += 1
+        return current
 
 
 _TSlice = typing.TypeVar("_TSlice", bound=TimeSlice)
@@ -47,9 +48,9 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def __init__(self, *args, cache_depth=3, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         if self._cache is _not_found_ or self._cache is None:
-            self._cache = [] 
+            self._cache = []
 
         self._entry_cursor = None
         self._cache_cursor = len(self._cache) - 1
@@ -89,12 +90,12 @@ class TimeSeriesAoS(List[_TSlice]):
 
     @property
     def current(self) -> _TSlice:
-        return self._fetch(0)
+        return self._find(0)
 
     @property
-    def previous(self) -> typing.Generator[_TSlice, None]:
+    def previous(self) -> typing.Generator[_TSlice, None, None]:
         for i in range(len(self._cache)):
-            yield self._fetch(-(i + 1))
+            yield self._find(-(i + 1))
 
     @property
     def is_initializied(self) -> bool:
@@ -141,11 +142,11 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return pos, time
 
-    def _fetch(self, idx: int, *args, **kwargs) -> _TSlice:
+    def _find(self, idx: int, *args, **kwargs) -> _TSlice:
         if not isinstance(idx, int):
             return _not_found_
         elif not self.is_initializied:
-            self._initialize(*args, **kwargs)
+            self.initialize(*args, **kwargs)
 
         cache_pos = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
 
@@ -162,7 +163,8 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return value
 
-    def _initialize(self, *args, **kwargs):
+    def initialize(self, *args, **kwargs):
+        """初始化 TimeSeries"""
         if self.is_initializied:
             return
             # raise RuntimeError(f"TimeSeries is already initialized!")
@@ -188,21 +190,25 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def refresh(self, *args, **kwargs) -> typing.Type[TimeSeriesAoS]:
         if not self.is_initializied:
-            self._initialize(*args, **kwargs)
-        else:
-            self._cache[self._cache_cursor] = update_tree(self._cache[self._cache_cursor], *args, **kwargs)
+            raise RuntimeError("TimeSlice is not initializied!")
+
+        self._cache[self._cache_cursor] = update_tree(self._cache[self._cache_cursor], *args, **kwargs)
 
     def advance(self, *args, **kwargs) -> _TSlice:
         if not self.is_initializied:
-            self._initialize(*args, **kwargs)
-        else:
-            self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
+            raise RuntimeError("TimeSlice is not initializied!")
 
-            if self._cache[self._cache_cursor] is not _not_found_:
-                self.__full__(self._cache[self._cache_cursor])
+        self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
 
-            self._entry_cursor += 1
+        if self._cache[self._cache_cursor] is not _not_found_:
+            self.__full__(self._cache[self._cache_cursor])
 
-            self._cache[self._cache_cursor] = merge_tree(*args, **kwargs)
+        self._entry_cursor += 1
+
+        self._cache[self._cache_cursor] = merge_tree(*args, **kwargs)
 
         return self.current
+
+    def finalize(self):
+        """完成"""
+        pass

@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing_extensions import Self
 
 from spdm.data.HTree import HTree, HTreeNode
+from spdm.utils.tags import _not_found_
 
 from .Entry import Entry
 from .HTree import HTree, List, Dict
@@ -92,7 +93,10 @@ class QueryResult(HTree):
                 yield self._type_convert(value, idx, entry=entry)
 
 
-class AoS(List[_T]):
+_TNode = typing.TypeVar("_TNode", HTreeNode, HTree)
+
+
+class AoS(List[_TNode]):
     """
     Array of structure
 
@@ -108,7 +112,14 @@ class AoS(List[_T]):
         other = super().__copy__()
         return other
 
-    def __getitem__(self, path) -> _T:
+    def __clone__(self, *args, _parent=..., **kwargs) -> Self:
+        return self.__duplicate__([obj.__clone__(*args, _parent=None, **kwargs) for obj in self], _parent=_parent)
+
+    def __iter__(self) -> typing.Generator[_TNode, None, None]:
+        for idx, v in self.children():
+            yield v
+
+    def __getitem__(self, path) -> _TNode:
         if isinstance(path, str) and path.isidentifier() or isinstance(path, int):
             return self._fetch(path)
         else:
@@ -123,9 +134,9 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def _fetch(self, key: PathLike, *args, **kwargs) -> HTree | _T | QueryResult[_T]:
+    def _fetch(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
-        res = super()._fetch(key, *args, **kwargs)
+        res = super()._find(key, *args, **kwargs)
 
         if len(args) == 0 and res is not _not_found_ and isinstance(key, str):
             default_value = merge_tree(

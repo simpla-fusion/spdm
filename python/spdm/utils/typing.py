@@ -359,6 +359,9 @@ def isinstance_generic(obj: typing.Any, type_hint: typing.Type) -> bool:
 
 
 def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.Any:
+    if value is _not_found_:
+        value = kwargs.pop("default_value", _not_found_)
+
     if tp is None or tp is _not_found_ or tp is typing.Any:
         return value
 
@@ -371,40 +374,13 @@ def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.
     elif tp in (set, list, dict, tuple):
         return tp(value)
 
-    elif (not inspect.isclass(tp) or not issubclass(tp, (Enum, *primary_type))) and not dataclasses.is_dataclass(tp):
-        return tp(value, *args, **kwargs)
-
-    default_value = kwargs.pop("default_value", _not_found_)
-
-    if hasattr(value, "__value__"):
-        value = value.__value__
-
-    if value is _not_found_:
-        value = default_value
-
-    if value is _not_found_:
-        return _not_found_
-
-    origin_class = get_origin(tp)
-
-    if isinstance(value, origin_class):
-        pass
-
-    elif issubclass(origin_class, array_type):
+    elif issubclass(get_origin(tp), array_type):
         value = as_array(value)
 
-    elif tp is typing.Any:
-        if hasattr(value, "_value_"):
-            value = value.__value__
-
     elif tp in primary_type:
-        if hasattr(value, "_value_"):
-            value = value.__value__
-
-        if value is _not_found_:
-            value = kwargs.pop("default_value", _not_found_)
-
-        if value is not _not_found_ and value is not None:
+        value = getattr(value, "__value__", value)
+        
+        if value is not _not_found_:
             try:
                 tmp = tp(value)
             except Exception as error:
@@ -413,20 +389,26 @@ def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.
                 value = tmp
 
     elif dataclasses.is_dataclass(tp):
+        value = getattr(value, "__value__", value)
         value = as_dataclass(tp, value)
 
-    elif issubclass(origin_class, Enum):
-        if hasattr(value, "_value_"):
-            value = value.__value__
+    elif issubclass(get_origin(tp), Enum):
+        value = getattr(value, "__value__", value)
+
         if isinstance(value, collections.abc.Mapping):
             value = tp[value["name"]]
-        elif isinstance(value, str):
+
+        elif isinstance(value, (int, str)):
             value = tp[value]
+
         else:
             raise TypeError(f"Can not convert {value} to {tp}")
 
     else:
-        raise TypeError(f"Can not convert {type(value)} to {tp}")
+        try:
+            value = tp(value, *args, **kwargs)
+        except Exception as error:
+            raise TypeError(f"Can not convert {type(value)} to {tp}") from error
 
     return value
 

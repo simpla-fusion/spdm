@@ -45,24 +45,24 @@ class TestPath(unittest.TestCase):
 
     def test_query(self):
 
-        self.assertEqual(Path("c").fetch(self.data),           self.data["c"])
-        self.assertEqual(Path("d/e").fetch(self.data),      self.data["d"]["e"])
-        self.assertEqual(Path("d/f").fetch(self.data),      self.data["d"]["f"])
-        self.assertEqual(Path("a/0").fetch(self.data),        self.data["a"][0])
-        self.assertEqual(Path(["a", 1]).fetch(self.data),        self.data["a"][1])
+        self.assertEqual(Path("c").find(self.data),           self.data["c"])
+        self.assertEqual(Path("d/e").find(self.data),      self.data["d"]["e"])
+        self.assertEqual(Path("d/f").find(self.data),      self.data["d"]["f"])
+        self.assertEqual(Path("a/0").find(self.data),        self.data["a"][0])
+        self.assertEqual(Path(["a", 1]).find(self.data),        self.data["a"][1])
         # self.assertEqual(Path("a/2:4:1").query(self.data),        self.data["a"][2:4])
-        self.assertEqual(Path("d/k").fetch(self.data, default_value=None),      None)
+        self.assertEqual(Path("d/k").find(self.data, default_value=None),      None)
 
     def test_query_op(self):
 
-        self.assertEqual(Path(["a"]).fetch(self.data, Path.tags.count), 6)
-        self.assertEqual(Path(["d/e"]).fetch(self.data, Path.tags.count), 1)
-        self.assertEqual(Path(["b/h"]).fetch(self.data, Path.tags.count), 0)
-        self.assertEqual(Path(["d/f"]).fetch(self.data, Path.tags.count), 1)
+        self.assertEqual(Path(["a"]).find(self.data, Path.tags.count), 6)
+        self.assertEqual(Path(["d/e"]).find(self.data, Path.tags.count), 1)
+        self.assertEqual(Path(["b/h"]).find(self.data, Path.tags.count), 0)
+        self.assertEqual(Path(["d/f"]).find(self.data, Path.tags.count), 1)
 
-        self.assertEqual(Path().fetch(self.data, Path.tags.count),          3)
-        self.assertEqual(Path(["a"]).fetch(self.data, Path.tags.count),   6)
-        self.assertEqual(Path(["d"]).fetch(self.data, Path.tags.count),   2)
+        self.assertEqual(Path().find(self.data, Path.tags.count),          3)
+        self.assertEqual(Path(["a"]).find(self.data, Path.tags.count),   6)
+        self.assertEqual(Path(["d"]).find(self.data, Path.tags.count),   2)
 
         # self.assertTrue(Path(["a", slice(2, 7), {Path.tags.equal: [1, 2, 3, 4]}]).query(self.data))
 
@@ -70,7 +70,7 @@ class TestPath(unittest.TestCase):
 
         cache = deepcopy(self.data)
 
-        res = Path({"a/2", "c",  "d/e", "e"}).fetch(cache)
+        res = Path({"a/2", "c",  "d/e", "e"}).find(cache)
       
         self.assertDictEqual(res, {"a/2": cache['a'][2],
                                    "c": cache['c'],

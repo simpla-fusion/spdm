@@ -616,13 +616,6 @@ class Path(list):
         """
         return Path._do_update(target, self[:], *args, **kwargs)
 
-    def fetch(self, source: typing.Any, *args, **kwargs) -> typing.Any:
-        """
-        根据路径（self）查询元素。只读，不会修改 target
-        对应 RESTful 中的 read，幂等操作
-        """
-        return Path._do_fetch(source, self[:], *args, **kwargs)
-
     def remove(self, target: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         """根据路径（self）删除 target 中的元素。
 
@@ -633,6 +626,13 @@ class Path(list):
         返回修改后的target和删除的元素的个数
         """
         return Path._do_update(target, self[:], None, *args, **kwargs)
+
+    def find(self, source: typing.Any, *args, **kwargs) -> typing.Any:
+        """
+        根据路径（self）查询元素。只读，不会修改 target
+        对应 RESTful 中的 read，幂等操作
+        """
+        return Path._do_find(source, self[:], *args, **kwargs)
 
     def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
         yield from Path._do_for_each(source, self[:], *args, **kwargs)
@@ -651,7 +651,7 @@ class Path(list):
         return self.update(target, value)
 
     def get(self, source: typing.Any, default_value=_not_found_):
-        return self.fetch(source, default_value=default_value)
+        return self.find(source, default_value=default_value)
 
     # End API
     ###########################################################
@@ -816,7 +816,7 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_fetch(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
+    def _do_find(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
         if not isinstance(path, list):
             raise TypeError(path)
 
@@ -824,7 +824,7 @@ class Path(list):
             key = path[0]
 
             if key is None:
-                res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                res = Path._do_find(source, path[1:], *args, **kwargs)
 
             elif source is _not_found_ or source is None:
                 res = source
@@ -835,7 +835,7 @@ class Path(list):
                 else:
                     raise NotImplementedError(f"{type(source)} {path}")
 
-                res = Path._do_fetch(source, [new_key] + path[2:], *args, **kwargs)
+                res = Path._do_find(source, [new_key] + path[2:], *args, **kwargs)
 
             elif len(path) > 1 and path[1] is Path.tags.prev:
                 if isinstance(key, int):
@@ -843,13 +843,13 @@ class Path(list):
                 else:
                     raise NotImplementedError(f"{type(source)} {path}")
 
-                res = Path._do_fetch(source, [new_key] + path[2:], *args, **kwargs)
+                res = Path._do_find(source, [new_key] + path[2:], *args, **kwargs)
 
             elif key is Path.tags.current:
-                res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                res = Path._do_find(source, path[1:], *args, **kwargs)
 
             elif key is Path.tags.parent:
-                res = Path._do_fetch(getattr(source, "_parent", _not_found_), path[1:], *args, **kwargs)
+                res = Path._do_find(getattr(source, "_parent", _not_found_), path[1:], *args, **kwargs)
 
             elif key is Path.tags.ancestors:
                 # 逐级查找上层 _parent, 直到找到
@@ -859,10 +859,10 @@ class Path(list):
 
                 while obj is not None and obj is not _not_found_:
                     if not isinstance(obj, collections.abc.Sequence):
-                        res = Path._do_fetch(obj, path[1:], *args, default_value=_not_found_, **kwargs)
+                        res = Path._do_find(obj, path[1:], *args, default_value=_not_found_, **kwargs)
                         if res is not _not_found_:
                             break
-                    obj = Path._do_fetch(obj, [Path.tags.parent], default_value=_not_found_)
+                    obj = Path._do_find(obj, [Path.tags.parent], default_value=_not_found_)
                 else:
                     res = default_value
 
@@ -870,52 +870,50 @@ class Path(list):
                 # 遍历访问所有叶节点
                 if isinstance(source, collections.abc.Mapping):
                     res = {
-                        k: Path._do_fetch(v, [Path.tags.descendants] + path[1:], *args, **kwargs)
+                        k: Path._do_find(v, [Path.tags.descendants] + path[1:], *args, **kwargs)
                         for k, v in source.items()
                     }
 
                 elif isinstance(source, collections.abc.Iterable):
-                    res = [Path._do_fetch(v, [Path.tags.descendants] + path[1:], *args, **kwargs) for v in source]
+                    res = [Path._do_find(v, [Path.tags.descendants] + path[1:], *args, **kwargs) for v in source]
 
                 else:
-                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                    res = Path._do_find(source, path[1:], *args, **kwargs)
 
             elif key is Path.tags.children:
                 if isinstance(source, collections.abc.Mapping):
-                    res = {k: Path._do_fetch(v, path[1:], *args, **kwargs) for k, v in source.items()}
+                    res = {k: Path._do_find(v, path[1:], *args, **kwargs) for k, v in source.items()}
 
                 elif isinstance(source, collections.abc.Iterable):
-                    res = [Path._do_fetch(v, path[1:], *args, **kwargs) for v in source]
+                    res = [Path._do_find(v, path[1:], *args, **kwargs) for v in source]
 
                 else:
                     res = []
 
             elif key is Path.tags.slibings:
-                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
+                parent = Path._do_find(source, [Path.tags.parent], default_value=_not_found_)
 
                 if isinstance(parent, collections.abc.Mapping):
-                    res = {
-                        k: Path._do_fetch(v, path[1:], *args, **kwargs) for k, v in parent.items() if v is not source
-                    }
+                    res = {k: Path._do_find(v, path[1:], *args, **kwargs) for k, v in parent.items() if v is not source}
 
                 elif isinstance(parent, collections.abc.Iterable):
-                    res = [Path._do_fetch(v, path[1:], *args, **kwargs) for v in parent if v is not source]
+                    res = [Path._do_find(v, path[1:], *args, **kwargs) for v in parent if v is not source]
 
                 else:
                     res = []
 
             elif isinstance(key, str) and key.isidentifier() and hasattr(source, key):
-                res = Path._do_fetch(getattr(source, key), path[1:], *args, **kwargs)
+                res = Path._do_find(getattr(source, key), path[1:], *args, **kwargs)
 
             elif isinstance(source, collections.abc.Mapping):
-                res = Path._do_fetch(source.get(key, _not_found_), path[1:], *args, **kwargs)
+                res = Path._do_find(source.get(key, _not_found_), path[1:], *args, **kwargs)
 
             elif isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
                 if isinstance(key, int):
-                    res = Path._do_fetch(source[key], path[1:], *args, **kwargs)
+                    res = Path._do_find(source[key], path[1:], *args, **kwargs)
 
                 elif isinstance(key, slice):
-                    res = [Path._do_fetch(s, path[1:], *args, **kwargs) for s in source[key]]
+                    res = [Path._do_find(s, path[1:], *args, **kwargs) for s in source[key]]
 
                 else:
                     res = _not_found_
@@ -927,7 +925,7 @@ class Path(list):
                             (error)
                             res = _not_found_
                         else:
-                            res = Path._do_fetch(res, path[1:], *args, **kwargs)
+                            res = Path._do_find(res, path[1:], *args, **kwargs)
 
                     if res is _not_found_:
                         if isinstance(key, str) and not key.startswith(("@", "$")):
@@ -937,7 +935,7 @@ class Path(list):
 
                         for d in source:
                             if query.check(d):
-                                res = Path._do_fetch(d, path[1:], *args, **kwargs)
+                                res = Path._do_find(d, path[1:], *args, **kwargs)
                                 break
                         else:
                             res = _not_found_
@@ -991,7 +989,7 @@ class Path(list):
                         yield idx, Path._do_for_each(v, path[1:], *args, level=level - 1, **kwargs)
 
             elif key is Path.tags.slibings:
-                parent = Path._do_fetch(source, [Path.tags.parent], default_value=_not_found_)
+                parent = Path._do_find(source, [Path.tags.parent], default_value=_not_found_)
 
                 if isinstance(parent, collections.abc.Mapping):
                     for k, v in parent.items():
@@ -1008,7 +1006,7 @@ class Path(list):
             elif key is Path.tags.ancestors:
                 key = ""
                 while source is not None and source is not _not_found_:
-                    res = Path._do_fetch(source, path[1:], *args, **kwargs)
+                    res = Path._do_find(source, path[1:], *args, **kwargs)
                     if res is not _not_found_:
                         yield key + "/".join(path[1:]), res
                         break
@@ -1025,14 +1023,14 @@ class Path(list):
                         for j, s in Path._do_for_each(v, [Path.tags.descendants] + path[1:], *args, **kwargs):
                             yield f"{i}/{j}", s
                 else:
-                    obj = Path._do_fetch(source, [key], default_value=_not_found_)
+                    obj = Path._do_find(source, [key], default_value=_not_found_)
                     yield from Path._do_for_each(obj, path[1:], *args, **kwargs)
 
             elif isinstance(key, Query):
                 raise NotImplementedError(f"Not implemented! {path}")
 
             else:
-                source = Path._do_fetch(source, [key], default_value=_not_found_)
+                source = Path._do_find(source, [key], default_value=_not_found_)
 
                 for p, v in Path._do_for_each(source, path[1:], *args, level=level, **kwargs):
                     yield p, v
