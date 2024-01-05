@@ -62,14 +62,14 @@ from ..utils.tags import _not_found_
 class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
 
-    def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
-        return self._find(key, *args, **kwargs)
+    def __get_property__(self, _name: str, *args, **kwargs) -> SpTree:
+        return self._find(_name, *args, **kwargs)
 
-    def __set_property__(self, key: str, value: typing.Any = None, *args, **kwargs) -> None:
-        self._update(key, value, *args, **kwargs)
+    def __set_property__(self, _name: str, value: typing.Any = None, *args, **kwargs) -> None:
+        self._update(_name, value, *args, **kwargs)
 
-    def __del_property__(self, key: str, *args, **kwargs):
-        self._remove(key, *args, **kwargs)
+    def __del_property__(self, _name: str, *args, **kwargs):
+        self._remove(_name, *args, **kwargs)
 
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
@@ -86,13 +86,13 @@ class SpTree(Dict[HTreeNode]):
 
         return super()._do_serialize(data, dumper)
 
-    def __clone__(self, *args, _parent=..., **kwargs) -> Self:
+    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
         cache = {}
 
         for k, value in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
             if getattr(value, "getter", None) is None:
-                if (value := getattr(self, k, ...)) is not ...:
-                    cache[k] = HTreeNode._do_clone(value, *args, _parent=None, **kwargs)
+                if (value := getattr(self, k, _not_found_)) is not _not_found_:
+                    cache[k] = HTreeNode._do_fetch(value, *args, _parent=None, **kwargs)
 
         return self.__duplicate__(cache, _parent=_parent)
 
@@ -250,13 +250,14 @@ class SpProperty:
     def __set__(self, instance: SpTree, value: typing.Any) -> None:
         assert instance is not None
 
-        property_name = self.metadata.get("alias", self.property_name)
+        if (alias := self.metadata.get("alias", _not_found_)) is not _not_found_:
+            logger.error(f"Can not set alias proptery {alias}!")
 
-        if property_name is None:
-            logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
+        if self.property_name is None:
+            logger.error("Can not use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance.__set_property__(property_name, value, setter=self.setter)
+            instance.__set_property__(self.property_name, value, setter=self.setter)
 
     def __get__(self, instance: SpTree, owner_cls=None) -> _T:
         if instance is None:

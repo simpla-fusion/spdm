@@ -24,9 +24,9 @@ if __name__ == '__main__':
 
         entry = open_entry("MDSplus[EAST]:///#70754")
 
-    pf_current = entry.child("pf_active/coil/0/current/data").fetch()
+    pf_current = entry.child("pf_active/coil/0/current/data").find()
 
-    pf_time = entry.child("pf_active/coil/0/current/time").fetch()
+    pf_time = entry.child("pf_active/coil/0/current/time").find()
 
     # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
 

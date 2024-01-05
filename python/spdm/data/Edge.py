@@ -42,16 +42,11 @@ class Port:
 
         if node is _not_found_:
             pass
+
         elif isinstance(node, Port):
-            if node.node is not _not_found_ and node.node is not None and node.node is not _undefined_:
-                self.node = node.node
+            self.link(node.node)
 
-        elif isinstance(node, HTree):
-            self.node = node
-
-        elif isinstance(self.node, HTree):
-            self.node.update(node)
-        else:
+        elif node is not _not_found_ and node is not None and node is not _undefined_:
             self.node = node
 
         return self.node
@@ -85,11 +80,7 @@ class Port:
         return self.fragment.find(self.node, *args, **kwargs)
 
     def fetch(self, *args, **kwargs):
-        node = self.fragment.find(self.node)
-        if hasattr(node.__class__, "fetch"):
-            return node.fetch(*args, **kwargs)
-        else:
-            return HTreeNode._do_clone(node, *args, **kwargs)
+        return HTreeNode._do_fetch(self.fragment.find(self.node), *args, **kwargs)
 
     @property
     def is_changed(self) -> bool:
@@ -109,7 +100,9 @@ class Ports(Dict[Port]):
     def get(self, key: str, *args, **kwargs) -> Port:
         port: Port = super().get([key] if isinstance(key, str) else key, *args, **kwargs)
         if (port.node is _not_found_ or port.node is None) and len(port.fragment) > 0:
-            port.node = self.get(port.identifier).node
+            port0 = super().get(port.identifier, _not_found_)
+            if isinstance(port0, Port):
+                port.node = port0.node
         return port
 
     def put(self, key: str, value) -> None:
@@ -131,31 +124,27 @@ class Ports(Dict[Port]):
     def refresh(self, *args, **kwargs) -> Self:
         attr_name = self.__class__.__name__.lower()
 
-        obj: HTreeNode = self._parent
+        if len(args) + len(kwargs) > 0:
+            for obj in [*args, kwargs]:
+                if isinstance(obj, Ports):
+                    for k, n in self.items():
+                        n.link(obj.find_cache(k, _not_found_) or obj.find_cache(n.identifier, _not_found_))
+                elif isinstance(obj, collections.abc.Mapping):
+                    for k, n in self.items():
+                        n.link(obj.get(k, obj.get(n.identifier, _not_found_)))
 
-        while obj is not _not_found_:
-            if hasattr(obj.__class__, attr_name):
-                self.link(getattr(obj, attr_name))
-                break
-            elif isinstance(obj, SpTree):
-                self.link(obj)
+        else:
+            parent: HTreeNode = Path("../../").get(self, _not_found_)
+            if isinstance(parent, collections.abc.Sequence):
+                parent = getattr(parent, "_parent", _not_found_)
 
-            obj = getattr(obj, "_parent", _not_found_)
+            if isinstance(parent, SpTree):
+                for n in self.values():
+                    n.link(getattr(parent, n.identifier, _not_found_))
 
-        self.link(*args, **kwargs)
+            self.refresh(getattr(parent, attr_name, _not_found_))
 
         return self
-
-    def link(self, obj=None, **kwargs):
-        if isinstance(obj, SpTree):
-            for n in self.values():
-                n.link(getattr(obj, n.identifier, _not_found_))
-        elif isinstance(obj, collections.abc.Mapping):
-            for n in self.values():
-                n.link(obj.get(n.identifier, _not_found_))
-
-        if len(kwargs) > 0:
-            self.link(kwargs)
 
 
 class InPorts(Ports):

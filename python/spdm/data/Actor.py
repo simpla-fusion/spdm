@@ -119,6 +119,9 @@ class Actor(Pluggable):
 
     def initialize(self, *args, **kwargs) -> None:
         """初始化 Actor 。"""
+        if self.time_slice.is_initializied:
+            return
+
         self.time_slice.initialize(*args, **kwargs)
 
         tp_hints = typing.get_type_hints(self.__class__.refresh)
@@ -161,7 +164,7 @@ class Actor(Pluggable):
         kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
 
         # 更新 inports，返回将不是 HTreeNode 的 input
-        self.inports.update({k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
+        self.inports.update( {k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
 
         current = self.preprocess(*args, **kwargs)
 

@@ -204,11 +204,6 @@ def as_query(query: QueryLike = None, **kwargs) -> Query | slice:
         return Query(query, **kwargs)
 
 
-PathLike = str | int | slice | dict | list | OpTags | None
-
-path_like = (int, str, slice, list, None, tuple, set, dict, OpTags)
-
-
 class PathError(Exception):
     def __init__(self, path: typing.List[PathLike], message: str | None = None) -> None:
         if message is None:
@@ -862,7 +857,8 @@ class Path(list):
                         res = Path._do_find(obj, path[1:], *args, default_value=_not_found_, **kwargs)
                         if res is not _not_found_:
                             break
-                    obj = Path._do_find(obj, [Path.tags.parent], default_value=_not_found_)
+                    obj = getattr(obj, "_parent", _not_found_)
+                    # Path._do_find(obj, [Path.tags.parent], default_value=_not_found_)
                 else:
                     res = default_value
 
@@ -1135,6 +1131,11 @@ class Path(list):
 
         else:
             raise NotImplementedError(f"Not implemented yet! {type(query)}")
+
+
+PathLike = str | int | slice | dict | list | OpTags | Path | None
+
+path_like = [int, str, slice, list, None, tuple, set, dict, OpTags, Path]
 
 
 _T = typing.TypeVar("_T")

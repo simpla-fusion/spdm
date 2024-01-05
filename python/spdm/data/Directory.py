@@ -170,7 +170,7 @@ class CollectionLocalFile(Collection):
         return self._path.format(id=fid or self.next_id, **kwargs)
 
     def find_one(self, *args, projection=None, **kwargs):
-        return File(self.guess_path(*args, **kwargs), mode=self.mode).fetch(projection)
+        return File(self.guess_path(*args, **kwargs), mode=self.mode).find(projection)
 
     def insert_one(self, *args, projection=None, **kwargs):
         return File(self.guess_path(*args, **kwargs), mode="x")

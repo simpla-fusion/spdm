@@ -14,7 +14,7 @@ from ..numlib.interpolate import interpolate
 
 from .Functor import Functor
 from .Entry import Entry
-from .HTree import HTreeNode, HTree, HTreeNode 
+from .HTree import HTreeNode, HTree, HTreeNode
 from .Domain import DomainBase
 from .Path import update_tree, Path
 from .Functor import Functor, DerivativeOp
@@ -96,17 +96,6 @@ class Expression(HTreeNode):
         other._children = copy(self._children)
         return other
 
-    def __clone__(self, *args, _parent=None, **kwargs):
-        res = self.__call__(*args, **kwargs)
-
-        if res is self:
-            res = self.__copy__()
-
-        if isinstance(res, HTreeNode):
-            res._parent = _parent
-
-        return res
-
     def __serialize__(self, dumper=None):
         logger.debug(f"TODO: __serialize__ {self}")
         return None
@@ -166,20 +155,14 @@ class Expression(HTreeNode):
         return callable(self._op) or self.has_children
 
     @property
-    def name(self) -> str:
-        return self._metadata.get("name", None) or self.__class__.__name__
-
-    @property
     def __label__(self) -> str:
-        label = self._metadata.get("label", None)
-        if label is None:
+        label = self._metadata.get("label", _not_found_)
+        if label is _not_found_:
             label = self._render_latex_()
         return str(label)
 
     def __str__(self) -> str:
-        return self._metadata.get("label", None) or self._metadata.get("name", None) or self.__class__.__name__
-
-    # f"<{getattr(self._op,'name',self._op.__class__.__name__)} label='{self.__label__}' />"
+        return self.__label__ or self.__name__
 
     def __repr__(self) -> str:
         return self._render_latex_()
@@ -206,7 +189,7 @@ class Expression(HTreeNode):
                 res = expr.__class__.__name__
             vargs.append(res)
 
-        if (op_tag := self._metadata.get("name", None)) is not None:
+        if (op_tag := self._metadata.get("label", None)) is not None:
             res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
 
         elif isinstance(self._op, np.ufunc):
@@ -225,7 +208,7 @@ class Expression(HTreeNode):
 
         else:
             if isinstance(self._op, Expression):
-                op_tag = self._op.name
+                op_tag = self._op.__label__
             else:
                 op_tag = self._op.__class__.__name__
 
@@ -304,6 +287,17 @@ class Expression(HTreeNode):
                 res = self.__eval__(*args)
             except Exception as error:
                 raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
+
+        return res
+
+    def fetch(self, *args, _parent=None, **kwargs):
+        res = self.__call__(*args, **kwargs)
+
+        if res is self:
+            res = self.__copy__()
+
+        if isinstance(res, HTreeNode):
+            res._parent = _parent
 
         return res
 

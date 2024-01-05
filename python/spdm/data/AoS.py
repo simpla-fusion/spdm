@@ -105,36 +105,17 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __copy__(self) -> Self:
-        other = super().__copy__()
-        return other
-
-    def __clone__(self, *args, _parent=..., **kwargs) -> Self:
-        return self.__duplicate__([obj.__clone__(*args, _parent=None, **kwargs) for obj in self], _parent=_parent)
-
     def __iter__(self) -> typing.Generator[_TNode, None, None]:
         for idx, v in self.children():
             yield v
 
     def __getitem__(self, path) -> _TNode:
         if isinstance(path, str) and path.isidentifier() or isinstance(path, int):
-            return self._fetch(path)
+            return self._find(path)
         else:
             return super().__getitem__(path)
 
-    def dump(self, entry: Entry, **kwargs) -> None:
-        """将数据写入 entry"""
-        entry.insert([{}] * len(self._cache))
-        for idx, value in enumerate(self._cache):
-            if isinstance(value, HTree):
-                value.dump(entry.child(idx), **kwargs)
-            else:
-                entry.child(idx).insert(value)
-
-    def _fetch(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
+    def _find(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
         res = super()._find(key, *args, **kwargs)
 
@@ -145,7 +126,7 @@ class AoS(List[_TNode]):
 
             self.append({Path.id_tag_name: key, **default_value})
 
-            res = self._fetch(key, *args, **kwargs)
+            res = self._find(key, *args, **kwargs)
 
         return res
 
@@ -162,3 +143,17 @@ class AoS(List[_TNode]):
         #     _entry=self._entry,
         #     **kwargs,
         # )
+
+    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
+        return self.__duplicate__(
+            [HTreeNode._do_fetch(obj, *args, _parent=None, **kwargs) for obj in self], _parent=_parent
+        )
+
+    def dump(self, entry: Entry, **kwargs) -> None:
+        """将数据写入 entry"""
+        entry.insert([{}] * len(self._cache))
+        for idx, value in enumerate(self._cache):
+            if isinstance(value, HTree):
+                value.dump(entry.child(idx), **kwargs)
+            else:
+                entry.child(idx).insert(value)
