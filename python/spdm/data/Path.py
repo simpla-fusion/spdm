@@ -32,7 +32,7 @@ class OpTags(Flag):
     prev  = auto()      # previous sibling
 
     # RESTful operation for CRUD
-    fetch  = auto()     # GET
+    find  = auto()      # GET
     update = auto()     # PUT
     insert = auto()     # POST
     remove = auto()     # DELETE
@@ -653,7 +653,7 @@ class Path(list):
 
     @staticmethod
     def _apply_op(obj: typing.Any, op: Path.tags, *args, **kwargs):
-        if op is Path.tags.fetch:
+        if op is Path.tags.find:
             return obj
 
         elif isinstance(op, Path.tags):
@@ -942,7 +942,7 @@ class Path(list):
             if res is _not_found_ and len(args) > 0 and (isinstance(args[0], Path.tags) or callable(args[0])):
                 res = Path._apply_op(_not_found_, *args, **kwargs)
 
-        elif len(args) == 0 or args[0] is Path.tags.fetch or args[0] is None:
+        elif len(args) == 0 or args[0] is Path.tags.find or args[0] is None:
             res = source
 
         elif isinstance(args[0], Path.tags) or callable(args[0]):

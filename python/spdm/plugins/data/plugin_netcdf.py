@@ -100,7 +100,7 @@ class NetCDFEntry(Entry):
     def insert(self,  value, *args, **kwargs):
         return nc_put_value(self._data, self._path, value, *args, **kwargs)
 
-    def fetch(self,   *args, **kwargs) -> typing.Any:
+    def find(self,   *args, **kwargs) -> typing.Any:
         return nc_get_value(self._data, self._path, *args, **kwargs)
 
     def dump(self):

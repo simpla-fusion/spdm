@@ -115,7 +115,7 @@ def h5_get_value(obj, path=None, projection=None, default=_undefined_, **kwargs)
             elif p in obj.attrs:
                 obj = obj.attrs[p]
             else:
-                raise KeyError(f"Can not find element at {'/'.join(prefix)} !")
+                raise KeyError(f"Can not search element at {'/'.join(prefix)} !")
 
     if projection is None:
         if isinstance(obj, h5py.Group):
@@ -255,7 +255,7 @@ class H5Entry(Entry):
     def insert(self, value, *args, **kwargs):
         return h5_put_value(self._data, self._path, value, *args, **kwargs)
 
-    def fetch(self, *args, **kwargs) -> typing.Any:
+    def find(self, *args, **kwargs) -> typing.Any:
         return h5_get_value(self._data, self._path, *args, **kwargs)
 
     def dump(self):

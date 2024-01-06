@@ -113,7 +113,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if isinstance(time_coord, str):
             time_coord = self.get(time_coord, default_value=_not_found_)
             if time_coord is None:
-                time_coord = self._entry.child(time_coord).fetch()
+                time_coord = self._entry.child(time_coord).find()
 
         self._time_coord = time_coord
 
@@ -129,7 +129,7 @@ class TimeSeriesAoS(List[_TSlice]):
             pos = self._entry_cursor or 0
 
             while True:
-                t_time = self._entry.child(f"{pos}/time").fetch(default_value=_not_found_)
+                t_time = self._entry.child(f"{pos}/time").find(default_value=_not_found_)
 
                 if t_time is _not_found_ or t_time is None or t_time > time:
                     time = None

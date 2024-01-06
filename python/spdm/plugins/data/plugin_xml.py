@@ -286,7 +286,7 @@ class XMLEntry(Entry):
 
     def remove(self,  *args, **kwargs) -> int: raise NotImplementedError(f"")
 
-    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
+    def find(self, op=None, *args, **kwargs) -> typing.Any:
 
         path = self._path[:]
         xp, envs = self.xpath(path)
@@ -311,14 +311,14 @@ class XMLEntry(Entry):
         elif op is Path.tags.is_dict:
             return len(obj) == 1
 
-        elif op is None or op is Path.tags.fetch:
+        elif op is None or op is Path.tags.find:
             return self._convert(obj, path=path,   envs=envs, **kwargs)
         else:
             target = self._convert(obj, path=path,   envs=envs, **kwargs)
 
             return Path._apply_op(target, op, [], *args)
 
-    def find_next(self,  start=None,  **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def search_next(self,  start=None,  **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if len(self._path) > 0 and isinstance(self._path[-1], slice):
             start = self._path[-1].start or start or 0
@@ -327,7 +327,7 @@ class XMLEntry(Entry):
             path = self._path[:-1] + [start]
 
         elif isinstance(self._path[-1], dict):
-            raise NotImplementedError(f"Can not find next element from dict!")
+            raise NotImplementedError(f"Can not search next element from dict!")
 
         else:
             if start is None or start is _not_found_:
@@ -342,7 +342,7 @@ class XMLEntry(Entry):
         xp, envs = self.xpath(path)
         data = xp.evaluate(self._data)
         if len(data) == 0:
-            raise StopIteration(f"Can not find next element from {path}")
+            raise StopIteration(f"Can not search next element from {path}")
         elif len(data) == 1:
             res = self._convert(data[0], lazy=True, path=path, envs=envs, **kwargs)
             return res, start+step
@@ -358,7 +358,7 @@ class XMLEntry(Entry):
             prefix = self._path[:-1]
 
         elif isinstance(self._path[-1], dict):
-            raise NotImplementedError(f"Can not find next element from dict!")
+            raise NotImplementedError(f"Can not search next element from dict!")
 
         else:
 
@@ -375,7 +375,7 @@ class XMLEntry(Entry):
             xp, envs = self.xpath(prefix+[next_id])
             data = xp.evaluate(self._data)
             if len(data) == 0:
-                # raise StopIteration(f"Can not find next element from {path}")
+                # raise StopIteration(f"Can not search next element from {path}")
                 break
             elif len(data) == 1:
                 res = self._convert(data[0], lazy=True, path=path, envs=envs, **kwargs)
@@ -398,7 +398,7 @@ class XMLEntry(Entry):
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
-    def find(self,  *args, envs={}, **kwargs):
+    def search(self,  *args, envs={}, **kwargs):
         # path, s_envs = self._xpath(self._path[:])
         # TODO: PathTraverser(path):
         for s_path in self._path.traversal():
@@ -437,7 +437,7 @@ class XMLEntry(Entry):
     @property
     def attribute(self): return self._data.attrib
 
-    def __serialize__(self): return serialize(self.fetch(default_value=_not_found_))
+    def __serialize__(self): return serialize(self.find(default_value=_not_found_))
 
 
 @File.register(["xml"])

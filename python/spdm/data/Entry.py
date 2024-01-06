@@ -73,15 +73,15 @@ class Entry(Pluggable):
 
     @property
     def is_leaf(self) -> bool:
-        return self.fetch(Path.tags.is_leaf)
+        return self.find(Path.tags.is_leaf)
 
     @property
     def is_list(self) -> bool:
-        return self.fetch(Path.tags.is_list)
+        return self.find(Path.tags.is_list)
 
     @property
     def is_dict(self) -> bool:
-        return self.fetch(Path.tags.is_dict)
+        return self.find(Path.tags.is_dict)
 
     @property
     def is_root(self) -> bool:
@@ -117,7 +117,7 @@ class Entry(Pluggable):
             entry = self.child(query)
             args = ()
 
-        return entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+        return entry.find(Path.tags.find, *args, default_value=default_value, **kwargs)
 
     def put(self, pth, value, *args, **kwrags) -> Entry:
         entry = self.child(pth)
@@ -125,24 +125,24 @@ class Entry(Pluggable):
         return entry
 
     def dump(self, *args, **kwargs) -> typing.Any:
-        return self.fetch(Path.tags.dump, *args, **kwargs)
+        return self.find(Path.tags.dump, *args, **kwargs)
 
     def equal(self, other) -> bool:
         if isinstance(other, Entry):
-            return self.fetch(Path.tags.equal, other.__value__)
+            return self.find(Path.tags.equal, other.__value__)
         else:
-            return self.fetch(Path.tags.equal, other)
+            return self.find(Path.tags.equal, other)
 
     @property
     def count(self) -> int:
-        return self.fetch(Path.tags.count)
+        return self.find(Path.tags.count)
 
     @property
     def exists(self) -> bool:
-        return self.fetch(Path.tags.exists)
+        return self.find(Path.tags.exists)
 
     def check_type(self, tp: typing.Type) -> bool:
-        return self.fetch(Path.tags.check_type, tp)
+        return self.find(Path.tags.check_type, tp)
 
     ###########################################################
 
@@ -199,7 +199,7 @@ class Entry(Pluggable):
         self._data, num = self._path.remove(self._data, **kwargs)
         return num
 
-    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
+    def find(self, op=None, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
@@ -214,7 +214,7 @@ class Entry(Pluggable):
         """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
 
-    def find(self, *args, **kwargs) -> Entry:
+    def search(self, *args, **kwargs) -> Entry:
         raise NotImplementedError()
 
     ###########################################################
@@ -243,19 +243,19 @@ class ChainEntry(Entry):
 
     def fetch(self, op=None, *args, default_value=_not_found_, **kwargs):
         if op is Path.tags.count:
-            res = super().fetch(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+            res = super().find(Path.tags.count, *args, default_value=_not_found_, **kwargs)
             if res is _not_found_ or res == 0:
                 for e in self._entrys:
-                    res = e.child(self._path).fetch(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+                    res = e.child(self._path).find(Path.tags.count, *args, default_value=_not_found_, **kwargs)
                     if res is not _not_found_ and res != 0:
                         break
         else:
-            res = super().fetch(op=op, *args, default_value=_not_found_, **kwargs)
+            res = super().find(op=op, *args, default_value=_not_found_, **kwargs)
 
             if res is _not_found_:
                 for e in self._entrys:
                     e_child = e.child(self._path)
-                    res = e_child.fetch(op=op, *args, default_value=_not_found_, **kwargs)
+                    res = e_child.find(op=op, *args, default_value=_not_found_, **kwargs)
                     if res is not _not_found_:
                         break
 
@@ -281,13 +281,13 @@ class ChainEntry(Entry):
 
                 yield k, ChainEntry(*entry_list)
 
-    def find(self, *args, **kwargs):
-        return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])
+    def search(self, *args, **kwargs):
+        return ChainEntry(*[e.search(*args, **kwargs) for e in self._entrys])
 
     @property
     def exists(self) -> bool:
-        res = [super().fetch(Path.tags.exists)]
-        res.extend([e.child(self._path).fetch(Path.tags.exists) for e in self._entrys])
+        res = [super().find(Path.tags.exists)]
+        res.extend([e.child(self._path).find(Path.tags.exists) for e in self._entrys])
         return any(res)
 
 
@@ -674,7 +674,7 @@ class EntryProxy(Entry):
 
         entry_list = {}
 
-        spdb = mapper.child("spdb").fetch()
+        spdb = mapper.child("spdb").find()
 
         if not isinstance(spdb, dict):
             entry_list["*"] = _url
@@ -730,17 +730,17 @@ class EntryProxy(Entry):
     def remove(self, **kwargs) -> int:
         raise NotImplementedError(f"")
 
-    def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        request = self._mapper.child(self._path).fetch(*args, default_value=_not_found_, lazy=False, **kwargs)
+    def find(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        request = self._mapper.child(self._path).find(*args, default_value=_not_found_, lazy=False, **kwargs)
 
-        return self._op_fetch(request, default_value=default_value)
+        return self._op_find(request, default_value=default_value)
 
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         """Return a generator of the results."""
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
-            yield idx, self._op_fetch(request)
+            yield idx, self._op_find(request)
 
-    def find(self, *args, **kwargs):
+    def search(self, *args, **kwargs):
         raise NotImplementedError()
 
     def _get_entry_by_name(self, entry_name: str, default_value=None) -> Entry | None:
@@ -759,7 +759,7 @@ class EntryProxy(Entry):
 
         return entry
 
-    def _op_fetch(self, request: typing.Any, *args, **kwargs) -> typing.Any:
+    def _op_find(self, request: typing.Any, *args, **kwargs) -> typing.Any:
         if isinstance(request, str) and "://" in request:
             request = uri_split_as_dict(request)
 
@@ -768,19 +768,19 @@ class EntryProxy(Entry):
             if defaultentry is None:
                 res = _not_found_
             else:
-                res = defaultentry.child(self._path).fetch(None, *args, **kwargs)
+                res = defaultentry.child(self._path).find(None, *args, **kwargs)
 
         elif isinstance(request, Entry):
             res = EntryProxy(request, self._entry_list)
 
         elif isinstance(request, list):
-            res = [self._op_fetch(req, *args, **kwargs) for req in request]
+            res = [self._op_find(req, *args, **kwargs) for req in request]
 
         elif not isinstance(request, dict):
             res = request
 
         elif "@spdb" not in request:
-            res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
+            res = {k: self._op_find(req, *args, **kwargs) for k, req in request.items()}
 
         else:
             entry = self._get_entry_by_name(request.get("@spdb", None))
@@ -788,6 +788,6 @@ class EntryProxy(Entry):
             if not isinstance(entry, Entry):
                 raise RuntimeError(f"Can not find entry for {request}")
 
-            res = entry.fetch(request.get("_text"), *args, **kwargs)
+            res = entry.find(request.get("_text"), *args, **kwargs)
 
         return res
