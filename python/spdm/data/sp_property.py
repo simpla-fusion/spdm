@@ -56,7 +56,7 @@ from .Path import update_tree, merge_tree, Path
 from .Expression import Expression
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger, deprecated
-from ..utils.tags import _not_found_
+from ..utils.tags import _not_found_, _undefined_
 
 
 class SpTree(Dict[HTreeNode]):
@@ -280,17 +280,15 @@ class SpProperty:
                     self.property_name,
                     _type_hint=self.type_hint,
                     _getter=self.getter,
-                    default_value=_not_found_,
+                    default_value=_undefined_,
                     **self.metadata,
                 )
-                if value is _not_found_:
+                if value is _not_found_:  # alias 不改变 _parent
                     value = instance.__get_property__(
                         self.alias,
                         _type_hint=self.type_hint,
-                        _getter=self.getter,
-                        _parent=_not_found_,  # alias 不改变 _parent
                         default_value=self.default_value,
-                        **self.metadata,
+                        _parent=_not_found_,
                     )
             else:
                 value = instance.__get_property__(

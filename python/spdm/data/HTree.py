@@ -511,18 +511,12 @@ class HTree(HTreeNode):
 
         else:
             # 整合 default_value
-            if isinstance(_name, str) and isinstance(self, collections.abc.Mapping):
-                s_default_value = Path(f"default_value/{_name}").get(self._metadata, _not_found_)
-            elif isinstance(self, collections.abc.Sequence):
-                s_default_value = Path(f"default_value").get(self._metadata, _not_found_)
-            else:
-                s_default_value = _not_found_
+            # if isinstance(_name, str) and _name.isidentifier() and (attr:=getattr(self.__class__)):  # isinstance(self, collections.abc.Mapping):
+            #     s_default_value = Path(f"default_value/{_name}").get(self._metadata, _not_found_)
 
-            default_value = deepcopy(update_tree(s_default_value, default_value))
-
-            if value is _not_found_ and (_entry is None or not _entry.exists):
-                value = default_value
-                _entry = None
+            if isinstance(self, collections.abc.Sequence):
+                s_default_value = self._metadata.get("default_initial_value", _not_found_)
+                default_value = deepcopy(update_tree(s_default_value, default_value))
 
             if (value is _not_found_ or value is _undefined_) and _entry is None:
                 pass
@@ -532,20 +526,26 @@ class HTree(HTreeNode):
                     pass
                 elif _entry is not None:
                     value = _entry.get(default_value=default_value)
-                else:
+
+                elif default_value is not _undefined_:
                     value = default_value
 
-                if value is not _not_found_:
+                if value is not _not_found_ and value is not _undefined_:
                     value = type_convert(_type_hint, value, **kwargs)
+                else:
+                    value = _not_found_
 
-            elif value is _not_found_ and default_value is not _not_found_:
-                value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
+            elif value is _not_found_:
+                if default_value is not _undefined_:
+                    value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
+                elif _entry is not None and _entry.exists:
+                    value = _type_hint(_not_found_, _entry=_entry, _parent=_parent, **kwargs)
 
             else:
-                value = _type_hint(value, _entry=_entry, default_value=default_value, _parent=_parent, **kwargs)
+                value = _type_hint(value, _entry=_entry, _parent=_parent, **kwargs)
 
         if isinstance(value, HTreeNode):
-            if value._parent is None:
+            if value._parent is None and _parent is not _not_found_:
                 value._parent = _parent
             if len(kwargs) > 0:
                 value._metadata.update(kwargs)
