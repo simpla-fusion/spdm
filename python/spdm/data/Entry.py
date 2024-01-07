@@ -159,7 +159,7 @@ class Entry(Pluggable):
         return other
 
     def child(self, path=None, *args, **kwargs) -> Entry:
-        path = Path(path)
+        path =as_path(path)
         if len(path) == 0:
             return self
 

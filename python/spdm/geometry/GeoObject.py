@@ -210,7 +210,7 @@ class GeoObject(Pluggable):
 _TG = typing.TypeVar("_TG")
 
 
-class GeoObjectSet(list[GeoObject]):
+class GeoObjectSet(typing.List[GeoObject]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args)
         rank = kwargs.pop("rank", None)
@@ -229,7 +229,7 @@ class GeoObjectSet(list[GeoObject]):
         self._metadata = kwargs
         # GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
-    def __svg__(self) -> str:
+    def _repr_svg_(self) -> str:
         return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"
 
     @property

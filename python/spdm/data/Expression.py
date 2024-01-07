@@ -637,6 +637,15 @@ def derivative(y, *args, order=1):
         return Derivative(order, y, *args)
 
 
+def integral(y, *args, order=1):
+    if isinstance(y, array_type):
+        from .Function import Function
+
+        return Function(*args, y).I(*args)
+    else:
+        return Antiderivative(order, y, *args)
+
+
 class Derivative(Expression):
     """算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
     受 np.ufunc 启发而来。

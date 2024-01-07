@@ -167,6 +167,7 @@ class SpProperty:
         getter: typing.Callable[[typing.Any], typing.Any] = None,
         setter=None,
         deleter=None,
+        default_value: typing.Any = _not_found_,
         # type_hint: typing.Type = None,
         doc: str = None,
         strict: bool = False,
@@ -198,6 +199,7 @@ class SpProperty:
         self.getter = getter
         self.setter = setter
         self.deleter = deleter
+        self.default_value = default_value
         self.doc = doc or ""
         self.property_name: str = None
         self.strict = strict
@@ -211,7 +213,7 @@ class SpProperty:
         self.getter = func
         return self
 
-    def __set_name__(self, owner_cls, name):
+    def __set_name__(self, owner_cls, name: str):
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
         self.property_name = name
@@ -221,8 +223,12 @@ class SpProperty:
             tp = typing.get_type_hints(self.getter).get("return", None)
 
         if tp is None:
-            tp = typing.get_type_hints(owner_cls).get(name, None)
-
+            try:
+                tp = typing.get_type_hints(owner_cls).get(name, None)
+            except Exception as error:
+                logger.exception(owner_cls)
+                raise error
+            
         if tp is not None:
             self.type_hint = tp
 
@@ -243,7 +249,8 @@ class SpProperty:
                 self.doc += prop.doc
 
             elif prop is not _not_found_:
-                self.metadata["default_value"] = merge_tree(prop, self.metadata.get("default_value", _not_found_))
+                self.default_value = update_tree(self.default_value, prop)
+
         if self.doc == "":
             self.doc = f"{owner_cls.__name__}.{self.property_name}"
 
@@ -251,7 +258,7 @@ class SpProperty:
         assert instance is not None
 
         if (alias := self.metadata.get("alias", _not_found_)) is not _not_found_:
-            logger.error(f"Can not set alias proptery {alias}!")
+            logger.warning(f"set proptery alias {self.property_name} => {alias}!")
 
         if self.property_name is None:
             logger.error("Can not use sp_property instance without calling __set_name__ on it.")
@@ -266,29 +273,35 @@ class SpProperty:
         elif not isinstance(instance, SpTree):
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpTree'.")
 
-        property_name = self.metadata.get("alias", self.property_name)
-
         with self.lock:
-            value = instance.__get_property__(
-                property_name,
-                _type_hint=self.type_hint,
-                _getter=self.getter,
-                **self.metadata,
-            )
-
-            if value is _not_found_ and property_name != self.property_name:
+            if (alias := self.metadata.get("alias", _not_found_)) is not _not_found_:
                 value = instance.__get_property__(
                     self.property_name,
                     _type_hint=self.type_hint,
                     _getter=self.getter,
+                    default_value=_not_found_,
                     **self.metadata,
                 )
                 if value is not _not_found_:
-                    instance.__set_property__(property_name, value, setter=self.setter)
+                    value = instance.__get_property__(
+                        alias,
+                        _type_hint=self.type_hint,
+                        _getter=self.getter,
+                        default_value=self.default_value,
+                        **self.metadata,
+                    )
+            else:
+                value = instance.__get_property__(
+                    self.property_name,
+                    _type_hint=self.type_hint,
+                    _getter=self.getter,
+                    default_value=self.default_value,
+                    **self.metadata,
+                )
 
             if self.strict and value is _not_found_:
                 raise AttributeError(
-                    f"The value of property '{owner_cls.__name__ if owner_cls is not None else 'none'}.{property_name}' is not assigned!"
+                    f"The value of property '{owner_cls.__name__ if owner_cls is not None else 'none'}.{self.property_name}' is not assigned!"
                 )
 
         return value
@@ -298,7 +311,7 @@ class SpProperty:
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def sp_property(getter: typing.Callable[..., _T] | None = None, **kwargs) -> SpProperty:
+def sp_property(getter: typing.Callable[..., _T] | None = None, **kwargs) -> _T:
     if getter is None:
         return SpProperty(**kwargs)
     else:
