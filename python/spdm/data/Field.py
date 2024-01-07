@@ -161,7 +161,7 @@ class Field(Expression):
         if isinstance(self._mesh, Mesh):
             return self._mesh
 
-        if self._mesh is None or self._mesh is _not_found_:
+        if self._mesh is None or self._mesh is _not_found_ or len(self._mesh) == 0:
             self._mesh = guess_mesh(self, prefix="mesh")
 
         if not isinstance(self._mesh, Mesh):

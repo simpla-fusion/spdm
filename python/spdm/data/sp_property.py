@@ -234,24 +234,23 @@ class SpProperty:
         if tp is not None:
             self.type_hint = tp
 
-        metadata = [
-            getattr(getattr(base_cls, name, _not_found_), "metadata", _not_found_) for base_cls in owner_cls.__bases__
-        ]
-
-        self.metadata = merge_tree(*metadata, self.metadata)
-
-        self.metadata["name"] = name
-
         if self.getter is not None:
             self.doc += self.getter.__doc__ or ""
 
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
+                if self.default_value is _not_found_:
+                    self.default_value = prop.default_value
+
+                if self.alias is None:
+                    self.alias = prop.alias
+
                 self.doc += prop.doc
 
-            elif prop is not _not_found_:
-                self.default_value = update_tree(self.default_value, prop)
+                self.metadata = update_tree(deepcopy(prop.metadata), self.metadata)
+
+        self.metadata["name"] = name
 
         if self.doc == "":
             self.doc = f"{owner_cls.__name__}.{self.property_name}"
