@@ -63,13 +63,13 @@ class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
 
     def __get_property__(self, _name: str, *args, **kwargs) -> SpTree:
-        return self._find(_name, *args, **kwargs)
+        return self.find(_name, *args, **kwargs)
 
     def __set_property__(self, _name: str, value: typing.Any = None, *args, **kwargs) -> None:
-        self._update(_name, value, *args, **kwargs)
+        self.update(_name, value, *args, **kwargs)
 
     def __del_property__(self, _name: str, *args, **kwargs):
-        self._remove(_name, *args, **kwargs)
+        self.remove(_name, *args, **kwargs)
 
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
@@ -168,7 +168,8 @@ class SpProperty:
         setter=None,
         deleter=None,
         default_value: typing.Any = _not_found_,
-        # type_hint: typing.Type = None,
+        alias=None,
+        type_hint: typing.Type = None,
         doc: str = None,
         strict: bool = False,
         **kwargs,
@@ -200,11 +201,12 @@ class SpProperty:
         self.setter = setter
         self.deleter = deleter
         self.default_value = default_value
+        self.alias = alias
         self.doc = doc or ""
         self.property_name: str = None
         self.strict = strict
         self.metadata = kwargs
-        self.type_hint = None
+        self.type_hint = type_hint
 
     def __call__(self, func: typing.Callable[..., _TR]) -> _TR:
         """用于定义属性的getter操作，与@property.getter类似"""
@@ -228,7 +230,7 @@ class SpProperty:
             except Exception as error:
                 logger.exception(owner_cls)
                 raise error
-            
+
         if tp is not None:
             self.type_hint = tp
 
@@ -257,8 +259,8 @@ class SpProperty:
     def __set__(self, instance: SpTree, value: typing.Any) -> None:
         assert instance is not None
 
-        if (alias := self.metadata.get("alias", _not_found_)) is not _not_found_:
-            logger.warning(f"set proptery alias {self.property_name} => {alias}!")
+        if self.alias is not None:
+            logger.warning(f"set proptery alias {self.property_name} => {self.alias}!")
 
         if self.property_name is None:
             logger.error("Can not use sp_property instance without calling __set_name__ on it.")
@@ -274,7 +276,7 @@ class SpProperty:
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpTree'.")
 
         with self.lock:
-            if (alias := self.metadata.get("alias", _not_found_)) is not _not_found_:
+            if self.alias is not None:
                 value = instance.__get_property__(
                     self.property_name,
                     _type_hint=self.type_hint,
@@ -282,11 +284,12 @@ class SpProperty:
                     default_value=_not_found_,
                     **self.metadata,
                 )
-                if value is not _not_found_:
+                if value is _not_found_:
                     value = instance.__get_property__(
-                        alias,
+                        self.alias,
                         _type_hint=self.type_hint,
                         _getter=self.getter,
+                        _parent=_not_found_,  # alias 不改变 _parent
                         default_value=self.default_value,
                         **self.metadata,
                     )

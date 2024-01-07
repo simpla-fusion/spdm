@@ -13,7 +13,7 @@ import numpy as np
 
 from ..utils.logger import deprecated, logger
 from ..utils.misc import serialize
-from ..utils.tags import _not_found_
+from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, isinstance_generic, is_int
 
 
@@ -815,10 +815,25 @@ class Path(list):
         if not isinstance(path, list):
             raise TypeError(path)
 
-        if path is not None and len(path) > 0:
+        if source is _not_found_ or source is None:
+            res = source
+
+        elif path is not None and len(path) > 0:
             key = path[0]
 
-            if key is None:
+            is_attr = False
+
+            if (
+                isinstance(key, str)
+                and key.isidentifier()
+                and (attr := getattr(source, key, _not_found_)) is not _not_found_
+            ):
+                is_attr = True
+                res = Path._do_find(attr, path[1:], *args, **kwargs)
+
+            if is_attr:
+                pass
+            elif key is None:
                 res = Path._do_find(source, path[1:], *args, **kwargs)
 
             elif source is _not_found_ or source is None:
@@ -898,9 +913,6 @@ class Path(list):
                 else:
                     res = []
 
-            elif isinstance(key, str) and key.isidentifier() and hasattr(source, key):
-                res = Path._do_find(getattr(source, key), path[1:], *args, **kwargs)
-
             elif isinstance(source, collections.abc.Mapping):
                 res = Path._do_find(source.get(key, _not_found_), path[1:], *args, **kwargs)
 
@@ -942,10 +954,10 @@ class Path(list):
             if res is _not_found_ and len(args) > 0 and (isinstance(args[0], Path.tags) or callable(args[0])):
                 res = Path._apply_op(_not_found_, *args, **kwargs)
 
-        elif len(args) == 0 or args[0] is Path.tags.find or args[0] is None:
+        elif len(args) == 0 or args[0] is None:
             res = source
 
-        elif isinstance(args[0], Path.tags) or callable(args[0]):
+        elif isinstance(args[0], Path.tags) or (isinstance(args[0], Path.tags) or callable(args[0])):
             res = Path._apply_op(source, *args, **kwargs)
 
         else:
@@ -954,7 +966,7 @@ class Path(list):
                 raise RuntimeError(f"ignore {args} {kwargs}")
 
         if res is _not_found_:
-            res = kwargs.pop("default_value", _not_found_)
+            res = kwargs.get("default_value", _not_found_)
 
         return res
 

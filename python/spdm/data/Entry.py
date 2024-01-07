@@ -26,8 +26,8 @@ class Entry(Pluggable):
 
     def __init__(
         self,
-        data: typing.Any = None,
-        path: Path | PathLike = None,
+        data: typing.Any = _not_found_,
+        path: Path | PathLike = [],
         *args,
         scheme=None,
         **kwargs,
@@ -159,7 +159,7 @@ class Entry(Pluggable):
         return other
 
     def child(self, path=None, *args, **kwargs) -> Entry:
-        path =as_path(path)
+        path = as_path(path)
         if len(path) == 0:
             return self
 
@@ -241,21 +241,21 @@ class ChainEntry(Entry):
     def is_writable(self) -> bool:
         return self._entrys[0].is_writable
 
-    def fetch(self, op=None, *args, default_value=_not_found_, **kwargs):
-        if op is Path.tags.count:
-            res = super().find(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+    def find(self, *args, default_value=_not_found_, **kwargs):
+        if len(args) > 0 and args[0] is Path.tags.count:
+            res = super().find(*args, default_value=_not_found_, **kwargs)
             if res is _not_found_ or res == 0:
                 for e in self._entrys:
-                    res = e.child(self._path).find(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+                    res = e.child(self._path).find(*args, default_value=_not_found_, **kwargs)
                     if res is not _not_found_ and res != 0:
                         break
         else:
-            res = super().find(op=op, *args, default_value=_not_found_, **kwargs)
+            res = super().find(*args, default_value=_not_found_, **kwargs)
 
             if res is _not_found_:
                 for e in self._entrys:
                     e_child = e.child(self._path)
-                    res = e_child.find(op=op, *args, default_value=_not_found_, **kwargs)
+                    res = e_child.find(*args, default_value=_not_found_, **kwargs)
                     if res is not _not_found_:
                         break
 

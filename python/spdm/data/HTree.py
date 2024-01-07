@@ -520,8 +520,9 @@ class HTree(HTreeNode):
 
             default_value = deepcopy(update_tree(s_default_value, default_value))
 
-            if value is _not_found_ and _entry is None:
+            if value is _not_found_ and (_entry is None or not _entry.exists):
                 value = default_value
+                _entry = None
 
             if (value is _not_found_ or value is _undefined_) and _entry is None:
                 pass
@@ -537,34 +538,22 @@ class HTree(HTreeNode):
                 if value is not _not_found_:
                     value = type_convert(_type_hint, value, **kwargs)
 
-            elif value is _not_found_ and default_value is not _undefined_:
-                value = _type_hint(
-                    default_value,
-                    _entry=_entry,
-                    _parent=_parent,
-                    **kwargs,
-                )
+            elif value is _not_found_ and default_value is not _not_found_:
+                value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
 
             else:
-                value = _type_hint(
-                    value,
-                    _entry=_entry,
-                    _parent=_parent,
-                    default_value=default_value,
-                    **kwargs,
-                )
+                value = _type_hint(value, _entry=_entry, default_value=default_value, _parent=_parent, **kwargs)
 
         if isinstance(value, HTreeNode):
             if value._parent is None:
                 value._parent = _parent
+            if len(kwargs) > 0:
+                value._metadata.update(kwargs)
 
-            if isinstance(_name, str):
-                value._metadata["name"] = _name
-
-            value._metadata.update(kwargs)
+            value._metadata.setdefault("name", _name)
 
         if value is not _not_found_:
-            self._cache = Path._do_update(self._cache, [_name], value)
+            self._cache = Path._do_update(self._cache, [_name], value, _idempotent=True)
 
         return value
 
