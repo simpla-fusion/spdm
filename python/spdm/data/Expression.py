@@ -240,8 +240,10 @@ class Expression(HTreeNode):
             res = np.nan
 
         elif callable(self._op):
+            res = np.nan
+            
             with warnings.catch_warnings():
-                # warnings.filterwarnings("error", category=RuntimeWarning)
+                warnings.filterwarnings("error", category=RuntimeWarning)
                 try:
                     res = self._op(*args, **kwargs)
                 except RuntimeWarning as error:
