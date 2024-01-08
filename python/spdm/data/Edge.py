@@ -137,7 +137,7 @@ class Ports(Dict[Port]):
                         n.link(obj.get(k, obj.get(n.identifier, _not_found_)))
 
         else:
-            parent: HTreeNode = Path("../../").get(self, _not_found_)
+            parent: HTreeNode =as_path("../../").get(self, _not_found_)
             if isinstance(parent, collections.abc.Sequence):
                 parent = getattr(parent, "_parent", _not_found_)
 

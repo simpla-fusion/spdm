@@ -392,9 +392,9 @@ class HTree(HTreeNode):
             case 0:
                 self._update(None, *args, **kwargs)
             case 1:
-                self._update(first[0], *args, **kwargs)
+                self._update(path[0], *args, **kwargs)
             case _:
-                first.update(self, *args, **kwargs)
+                path.update(self, *args, **kwargs)
 
         return self
 
