@@ -44,6 +44,8 @@ class HTreeNode:
 
         _entry = list(args) + _entry
 
+        metadata = deepcopy(getattr(cls, "_metadata", {}))
+
         if isinstance(_cache, dict):
             t_entry = _cache.pop("$entry", _not_found_)
             if t_entry is _not_found_:
@@ -55,7 +57,9 @@ class HTreeNode:
             else:
                 _entry = t_entry + _entry
 
-            metadata = {k[1:]: _cache.pop(k) for k in list(_cache.keys()) if k.startswith("@")}
+            for k in list(_cache.keys()):
+                if k.startswith("@"):
+                    metadata[k[1:]] = _cache.get(k)
         else:
             metadata = {}
 
@@ -75,7 +79,7 @@ class HTreeNode:
 
         self._entry = open_entry(_entry)
 
-        self._metadata = deepcopy({**getattr(self.__class__, "_metadata", {}), **metadata})
+        self._metadata = metadata
 
         default_value = self._metadata.get("default_value", _not_found_)
 
@@ -512,7 +516,7 @@ class HTree(HTreeNode):
 
             if isinstance(self, collections.abc.Sequence):
                 s_default_value = self._metadata.get("default_initial_value", _not_found_)
-                default_value = deepcopy(update_tree(s_default_value, default_value))
+                default_value = update_tree(deepcopy(s_default_value), default_value)
 
             if (value is _not_found_ or value is _undefined_) and _entry is None:
                 pass
@@ -551,7 +555,13 @@ class HTree(HTreeNode):
             elif isinstance(_name, int):
                 value._metadata.setdefault("index", _name)
 
-        if value is not _not_found_:
+        if value is _not_found_:
+            pass
+        elif _name is None and isinstance(self._cache, collections.abc.MutableSequence):
+            self._cache.append(value)
+        elif _name is None:
+            pass
+        else:
             self._cache = Path._do_update(self._cache, [_name], value, _idempotent=True)
 
         return value

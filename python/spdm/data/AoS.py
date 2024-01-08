@@ -13,6 +13,7 @@ from .HTree import HTree, List, Dict
 from .Path import Path, PathLike, as_path, OpTags, update_tree, merge_tree
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, get_args, get_type_hint
+from ..utils.logger import logger
 
 _T = typing.TypeVar("_T")
 
@@ -121,33 +122,19 @@ class AoS(List[_TNode]):
         if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
             return super()._find(key, *args, **kwargs)
 
-        value = super().find_cache(key, *args, **kwargs)
+        index, value = Path().search(self._cache, key)
 
-        if value is _not_found_:
+        if index is None:
             default_value = merge_tree(
                 kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
             )
             value = {f"@{Path.id_tag_name}": key, **default_value}
 
-        _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
+            _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
 
-        value = self._type_convert(value, 0, _entry=_entry)
+        value = self._type_convert(value, index, _entry=_entry)
 
         return value
-
-        # else:
-        #     value = deepcopy(default_value)
-        #     pth.update(value, query)
-        #     return self._as_child(value, self.__len__())
-
-        # return QueryResult(
-        #     query,
-        #     self._cache,
-        #     default_value=default_value,
-        #     _type_hint=self._type_hint(0),
-        #     _entry=self._entry,
-        #     **kwargs,
-        # )
 
     def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
         return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)

@@ -36,6 +36,8 @@ class OpTags(Flag):
     update = auto()     # PUT
     insert = auto()     # POST
     remove = auto()     # DELETE
+    
+ 
 
     call  = auto()      # call function
     exists = auto()
@@ -634,6 +636,9 @@ class Path(list):
     def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
         yield from Path._do_for_each(source, self[:], *args, **kwargs)
 
+    def search(self, source, query, *args, **kwargs) -> int | None:
+        return Path._do_find(source, self[:], Path.tags.search, query, *args, **kwargs)
+
     def keys(self, source) -> typing.Generator[str, None, None]:
         yield from Path._do_for_each(source, Path.tags.keys)
 
@@ -926,29 +931,35 @@ class Path(list):
                     res = [Path._do_find(s, path[1:], *args, **kwargs) for s in source[key]]
 
                 else:
-                    res = _not_found_
-                    if not isinstance(source, list) and hasattr(source.__class__, "__getitem__"):
-                        # 先尝试默认的 __getitem__
-                        try:
-                            res = source[key]
-                        except Exception as error:
-                            (error)
-                            res = _not_found_
-                        else:
-                            res = Path._do_find(res, path[1:], *args, **kwargs)
+                    idx, value = Path._op_search(source, key)
 
-                    if res is _not_found_:
-                        if isinstance(key, str) and not key.startswith(("@", "$")):
-                            query = Query({f"@{Path.id_tag_name}": key})
-                        else:
-                            query = Query(key)
+                    if idx is None:
+                        res = _not_found_
+                    else:
+                        res = Path._do_find(value, path[1:], *args, **kwargs)
 
-                        for d in source:
-                            if query.check(d):
-                                res = Path._do_find(d, path[1:], *args, **kwargs)
-                                break
-                        else:
-                            res = _not_found_
+                    # if not isinstance(source, list) and hasattr(source.__class__, "__getitem__"):
+                    #     # 先尝试默认的 __getitem__
+                    #     try:
+                    #         res = source[key]
+                    #     except Exception as error:
+                    #         (error)
+                    #         res = _not_found_
+                    #     else:
+                    #         res = Path._do_find(res, path[1:], *args, **kwargs)
+
+                    # if res is _not_found_:
+                    #     if isinstance(key, str) and not key.startswith(("@", "$")):
+                    #         query = Query({f"@{Path.id_tag_name}": key})
+                    #     else:
+                    #         query = Query(key)
+
+                    #     for d in source:
+                    #         if query.check(d):
+                    #             res = Path._do_find(d, path[1:], *args, **kwargs)
+                    #             break
+                    #     else:
+                    #         res = _not_found_
 
             else:
                 res = _not_found_
@@ -1084,6 +1095,28 @@ class Path(list):
     @staticmethod
     def _op_exists(source: typing.Any, *args, **kwargs) -> bool:
         return source is not _not_found_
+
+    @staticmethod
+    def _op_search(source: typing.Iterable, *args, search_range=None, **kwargs):
+        if not isinstance(source, collections.abc.Sequence):
+            raise TypeError(f"{type(source)} is not sequence")
+
+        if len(args) == 1 and isinstance(args[0], str):
+            query = Query({f"@{Path.id_tag_name}": args[0], **kwargs})
+        else:
+            query = Query(*args, **kwargs)
+
+        if search_range is not None and isinstance(source, collections.abc.Sequence):
+            source = source[search_range]
+
+        for idx, value in enumerate(source):
+            if query.check(value):
+                break
+        else:
+            idx = None
+            value = _not_found_
+
+        return idx, value
 
     @staticmethod
     def _op_call(source, *args, **kwargs) -> typing.Any:
