@@ -210,7 +210,5 @@ class Actor(Pluggable):
         self.flush()
         self.time_slice.finalize()
 
-    def fetch(self, x=None, *args, **kwargs) -> typing.Type[TimeSlice]:
-        if x is _not_found_:
-            raise RuntimeError("illegal argument!")
-        return HTreeNode._do_fetch(self.time_slice.current, x, *args, **kwargs)
+    def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+        return HTreeNode._do_fetch(self.time_slice.current, *args, **kwargs)

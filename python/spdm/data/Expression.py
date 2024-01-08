@@ -191,7 +191,7 @@ class Expression(HTreeNode):
                 res = expr.__class__.__name__
             vargs.append(res)
 
-        if (op_tag := self._metadata.get("label", None)) is not None:
+        if (op_tag := self._metadata.get("label", self._metadata.get("name", None))) is not None:
             if len(vargs) == 0:
                 res = op_tag
             else:
