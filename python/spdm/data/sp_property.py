@@ -90,7 +90,7 @@ class SpTree(Dict[HTreeNode]):
         cache = {}
 
         for k, value in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
-            if getattr(value, "getter", None) is None:
+            if value.getter is None and value.alias is None:
                 if (value := getattr(self, k, _not_found_)) is not _not_found_:
                     cache[k] = HTreeNode._do_fetch(value, *args, _parent=None, **kwargs)
 

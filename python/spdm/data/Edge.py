@@ -80,7 +80,10 @@ class Port:
         return self.fragment.find(self.node, *args, **kwargs)
 
     def fetch(self, *args, **kwargs):
-        return HTreeNode._do_fetch(self.fragment.find(self.node), *args, **kwargs)
+        if len(args) + len(kwargs) == 0:
+            return self.fragment.find(self.node)
+        else:
+            return HTreeNode._do_fetch(self.fragment.find(self.node), *args, **kwargs)
 
     @property
     def is_changed(self) -> bool:

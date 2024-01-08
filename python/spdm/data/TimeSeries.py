@@ -74,7 +74,7 @@ class TimeSeriesAoS(List[_TSlice]):
         """当循环队列满了或序号出界的时候调用
         :param o: 最老的 time_slice
         """
-        pass
+        return _not_found_  #          super().__missing__(idx)
 
     @property
     def time(self) -> float:

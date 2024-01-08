@@ -500,16 +500,13 @@ class HTree(HTreeNode):
         _parent: HTree | None = None,
         **kwargs,
     ) -> _T:
-        if _parent is None:
-            _parent = self
-
         if _type_hint is None:
             _type_hint = self._get_type_hint(_name if _name is not None else 0)
 
-        if isinstance_generic(value, _type_hint):
-            pass
+        if _parent is None:
+            _parent = self
 
-        else:
+        if not isinstance_generic(value, _type_hint):
             # 整合 default_value
             # if isinstance(_name, str) and _name.isidentifier() and (attr:=getattr(self.__class__)):  # isinstance(self, collections.abc.Mapping):
             #     s_default_value = Path(f"default_value/{_name}").get(self._metadata, _not_found_)
@@ -530,7 +527,7 @@ class HTree(HTreeNode):
                 elif default_value is not _undefined_:
                     value = default_value
 
-                if value is not _not_found_ and value is not _undefined_:
+                if value is not _not_found_ and value is not _undefined_ and value is not None:
                     value = type_convert(_type_hint, value, **kwargs)
                 else:
                     value = _not_found_
@@ -547,6 +544,7 @@ class HTree(HTreeNode):
         if isinstance(value, HTreeNode):
             if value._parent is None and _parent is not _not_found_:
                 value._parent = _parent
+
             if len(kwargs) > 0:
                 value._metadata.update(kwargs)
 

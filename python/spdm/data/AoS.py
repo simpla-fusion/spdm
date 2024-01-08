@@ -93,7 +93,7 @@ class QueryResult(HTree):
                 yield self._type_convert(value, idx, entry=entry)
 
 
-_TNode = typing.TypeVar("_TNode", HTreeNode, HTree)
+_TNode = typing.TypeVar("_TNode")
 
 
 class AoS(List[_TNode]):
@@ -145,9 +145,7 @@ class AoS(List[_TNode]):
         # )
 
     def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
-        return self.__duplicate__(
-            [HTreeNode._do_fetch(obj, *args, _parent=None, **kwargs) for obj in self], _parent=_parent
-        )
+        return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
