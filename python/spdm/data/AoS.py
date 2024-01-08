@@ -117,18 +117,23 @@ class AoS(List[_TNode]):
 
     def _find(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
-        res = super()._find(key, *args, **kwargs)
 
-        if len(args) == 0 and res is not _not_found_ and isinstance(key, str):
+        if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
+            return super()._find(key, *args, **kwargs)
+
+        value = super().find_cache(key, *args, **kwargs)
+
+        if value is _not_found_:
             default_value = merge_tree(
                 kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
             )
+            value = {f"@{Path.id_tag_name}": key, **default_value}
 
-            self.append({Path.id_tag_name: key, **default_value})
+        _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
 
-            res = self._find(key, *args, **kwargs)
+        value = self._type_convert(value, 0, _entry=_entry)
 
-        return res
+        return value
 
         # else:
         #     value = deepcopy(default_value)

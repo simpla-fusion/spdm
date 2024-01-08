@@ -100,7 +100,7 @@ class Query:
             query = {f"@{Path.id_tag_name}": query}
 
         elif isinstance(query, dict):
-            query = {k: Query._parser(v) for k, v in query.items()}
+            query = {k: (Query._parser(v) if isinstance(v, dict) else v) for k, v in query.items()}
 
         # else:
         #     raise TypeError(f"{(query)}")

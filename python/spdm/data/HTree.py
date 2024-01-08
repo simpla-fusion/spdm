@@ -546,8 +546,10 @@ class HTree(HTreeNode):
 
             if len(kwargs) > 0:
                 value._metadata.update(kwargs)
-
-            value._metadata.setdefault("name", _name)
+            if isinstance(_name, str) and _name.isidentifier():
+                value._metadata.setdefault("name", _name)
+            elif isinstance(_name, int):
+                value._metadata.setdefault("index", _name)
 
         if value is not _not_found_:
             self._cache = Path._do_update(self._cache, [_name], value, _idempotent=True)
