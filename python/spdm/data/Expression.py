@@ -82,8 +82,10 @@ class Expression(HTreeNode):
                 from .Function import Function
 
                 TP = Function
+
             else:
-                raise RuntimeError(f"Unknown functor {op} {type(op)}")
+                return
+                # raise RuntimeError(f"Unknown functor {op} {type(op)}")
 
             self.__class__ = TP
 
@@ -190,7 +192,10 @@ class Expression(HTreeNode):
             vargs.append(res)
 
         if (op_tag := self._metadata.get("label", None)) is not None:
-            res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
+            if len(vargs) == 0:
+                res = op_tag
+            else:
+                res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
 
         elif isinstance(self._op, np.ufunc):
             op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__name__)
@@ -241,7 +246,7 @@ class Expression(HTreeNode):
 
         elif callable(self._op):
             res = np.nan
-            
+
             with warnings.catch_warnings():
                 warnings.filterwarnings("error", category=RuntimeWarning)
                 try:

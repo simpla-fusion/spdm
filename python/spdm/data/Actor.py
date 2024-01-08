@@ -164,7 +164,7 @@ class Actor(Pluggable):
         kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
 
         # 更新 inports，返回将不是 HTreeNode 的 input
-        self.inports.update( {k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
+        self.inports.update({k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
 
         current = self.preprocess(*args, **kwargs)
 
@@ -210,6 +210,7 @@ class Actor(Pluggable):
         self.flush()
         self.time_slice.finalize()
 
-    def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
-        """根据 args,kwargs 返回/clone 当前状态树"""
-        return self.time_slice.current.clone(*args, **kwargs)
+    def fetch(self, x=None, *args, **kwargs) -> typing.Type[TimeSlice]:
+        if x is _not_found_:
+            raise RuntimeError("illegal argument!")
+        return HTreeNode._do_fetch(self.time_slice.current, x, *args, **kwargs)

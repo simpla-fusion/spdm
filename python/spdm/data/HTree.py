@@ -77,7 +77,7 @@ class HTreeNode:
 
         self._metadata = deepcopy({**getattr(self.__class__, "_metadata", {}), **metadata})
 
-        default_value = deepcopy(self._metadata.get("default_value", _not_found_))
+        default_value = self._metadata.get("default_value", _not_found_)
 
         if _cache is _not_found_:
             self._cache = default_value
@@ -261,13 +261,12 @@ class HTreeNode:
         else:
             return obj
 
-    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
-        if _parent is _not_found_:
-            _parent = self._parent
-
-        cache = HTreeNode._do_fetch(self._cache, *args, _parent=None, **kwargs)
-
-        return self.__class__(cache, _parent=_parent, _entry=self._entry, **deepcopy(self._metadata))
+    def fetch(self, *args, **kwargs) -> Self:
+        return self.__class__(
+            HTreeNode._do_fetch(self._cache, *args, **kwargs),
+            _entry=self._entry,
+            **deepcopy(self._metadata),
+        )
 
     # 对元素操作
     def put(self, path, value):
@@ -382,20 +381,20 @@ class HTree(HTreeNode):
     def insert(self, *args, **kwargs):
         return self.update(*args, _idempotent=False, **kwargs)
 
-    def update(self, path=None, *args, **kwargs):
-        if isinstance(path, dict):
-            args = [path, *args]
-            path = None
+    def update(self, first=None, *args, **kwargs):
+        if isinstance(first, dict):
+            args = [first, *args]
+            first = None
 
-        path = as_path(path)
+        path = as_path(first)
 
         match len(path):
             case 0:
                 self._update(None, *args, **kwargs)
             case 1:
-                self._update(path[0], *args, **kwargs)
+                self._update(first[0], *args, **kwargs)
             case _:
-                path.update(self, *args, **kwargs)
+                first.update(self, *args, **kwargs)
 
         return self
 

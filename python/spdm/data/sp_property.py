@@ -86,15 +86,18 @@ class SpTree(Dict[HTreeNode]):
 
         return super()._do_serialize(data, dumper)
 
-    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
+    def fetch(self, *args, **kwargs) -> Self:
         cache = {}
 
-        for k, value in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
-            if value.getter is None and value.alias is None:
-                if (value := getattr(self, k, _not_found_)) is not _not_found_:
-                    cache[k] = HTreeNode._do_fetch(value, *args, _parent=None, **kwargs)
+        for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
+            if (
+                attr.getter is None
+                and attr.alias is None
+                and (value := getattr(self, k, _not_found_)) is not _not_found_
+            ):
+                cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
 
-        return self.__duplicate__(cache, _parent=_parent)
+        return self.__duplicate__(cache, _parent=None)
 
 
 class PropertyTree(SpTree):

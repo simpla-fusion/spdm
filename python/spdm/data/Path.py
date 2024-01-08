@@ -478,7 +478,7 @@ class Path(list):
     # example:
     # a/b_c6/c[{value:{$le:10}}][value]/D/[1，2/3，4，5]/6/7.9.8
 
-    PATH_PATTERN = re.compile(r"(?P<key>[^\[\]\/\,\.]+)(\[(?P<selector>[^\[\]]+)\])?")
+    PATH_PATTERN = re.compile(r"(?P<key>[^\[\]\/\,]+)(\[(?P<selector>[^\[\]]+)\])?")
 
     # 正则表达式解析，匹配一段被 {} 包裹的字符串
     PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
@@ -543,30 +543,32 @@ class Path(list):
             else:
                 yield path
 
-        elif len(path) == 0:
-            pass
-
-        elif path.startswith("/"):
-            yield Path.tags.root
-            yield from Path._parser_iter(path[1:])
-
-        elif path.startswith("../"):
-            yield Path.tags.parent
-            yield from Path._parser_iter(path[3:])
-        elif path.startswith(".../"):
-            yield Path.tags.ancestors
-            yield from Path._parser_iter(path[4:])
-        elif path == "*":
-            yield Path.tags.children
-
         else:
+            if path.startswith("/"):
+                yield Path.tags.root
+                path = path[1:]
+            elif path.isidentifier():
+                yield path
+                return
+
             for match in Path.PATH_PATTERN.finditer(path):
                 key = match.group("key")
 
                 if key is None:
                     pass
+
                 elif (tmp := is_int(key)) is not False:
                     yield tmp
+
+                elif key == "*":
+                    yield Path.tags.children
+
+                elif key == "..":
+                    yield Path.tags.parent
+
+                elif key == "...":
+                    yield Path.tags.ancestors
+
                 else:
                     yield key
 
