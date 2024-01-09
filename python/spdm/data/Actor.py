@@ -142,8 +142,16 @@ class Actor(Pluggable):
 
     def preprocess(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
+        current = self.time_slice.current
 
-        return self.time_slice.current.refresh(*args, **kwargs)
+        current.refresh(*args, **kwargs)
+
+        kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
+
+        # 更新 inports，返回将不是 HTreeNode 的 input
+        self.inports.update({k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
+
+        return current
 
     def execute(self, current: typing.Type[TimeSlice], *previous: typing.Type[TimeSlice]) -> typing.Type[TimeSlice]:
         """根据 inports 和 前序 time slice 更新当前time slice"""
@@ -161,10 +169,6 @@ class Actor(Pluggable):
         更新当前状态树 （time_slice），并执行 self.iteration+=1
 
         """
-        kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
-
-        # 更新 inports，返回将不是 HTreeNode 的 input
-        self.inports.update({k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
 
         current = self.preprocess(*args, **kwargs)
 
@@ -172,7 +176,7 @@ class Actor(Pluggable):
 
         current = self.postprocess(current)
 
-        current = self.time_slice.current
+        # current = self.time_slice.current
 
         return current
 
