@@ -59,7 +59,7 @@ class HTreeNode:
 
             for k in list(_cache.keys()):
                 if k.startswith("@"):
-                    metadata[k[1:]] = _cache.get(k)
+                    metadata[k[1:]] = _cache.pop(k)
         else:
             metadata = {}
 

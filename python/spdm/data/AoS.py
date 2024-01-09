@@ -124,15 +124,17 @@ class AoS(List[_TNode]):
 
         index, value = Path().search(self._cache, key)
 
-        if index is None:
-            default_value = merge_tree(
-                kwargs.pop("default_value", _not_found_), self._metadata.get("default_initial_value", _not_found_), {}
-            )
-            value = {f"@{Path.id_tag_name}": key, **default_value}
+        if not isinstance(value, HTreeNode):
+            _entry = self._entry.child(key) if self._entry is not None else None
+            if value is _not_found_:
+                value = merge_tree(
+                    kwargs.pop("default_value", _not_found_),
+                    self._metadata.get("default_initial_value", _not_found_),
+                    {},
+                )
+                value[f"@{Path.id_tag_name}"] = key
 
-            _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
-
-        value = self._type_convert(value, index, _entry=_entry)
+            value = self._type_convert(value, index, _entry=_entry)
 
         return value
 
