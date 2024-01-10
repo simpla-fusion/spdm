@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import collections.abc
 import functools
 import typing
 from copy import deepcopy
@@ -106,15 +106,15 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def __iter__(self) -> typing.Generator[_TNode, None, None]:
-        for idx, v in self.children():
-            yield v
-
     def __getitem__(self, path) -> _TNode:
         if isinstance(path, str) and path.isidentifier() or isinstance(path, int):
             return self._find(path)
         else:
             return super().__getitem__(path)
+
+    def _update(self, key, *args, **kwargs):
+        if not isinstance(key, str):
+            super().update(key, *args, **kwargs)
 
     def _find(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
@@ -122,10 +122,12 @@ class AoS(List[_TNode]):
         if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
             return super()._find(key, *args, **kwargs)
 
+        self._update_cache()
+
         index, value = Path().search(self._cache, key)
 
         if not isinstance(value, HTreeNode):
-            _entry = self._entry.child(key) if self._entry is not None else None
+            _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
             if value is _not_found_:
                 value = merge_tree(
                     kwargs.pop("default_value", _not_found_),
@@ -149,3 +151,33 @@ class AoS(List[_TNode]):
                 value.dump(entry.child(idx), **kwargs)
             else:
                 entry.child(idx).insert(value)
+
+    def _update_cache(self):
+        if not (self._cache is _not_found_ or len(self._cache) == 0) or self._entry is None:
+            return
+
+        tag = f"@{Path.id_tag_name}"
+
+        self._cache = []
+
+        keys = set([key for key in self._entry.child(f"*/{tag}").for_each()])
+
+        self._cache = [{tag: key} for key in keys]
+
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
+        self._update_cache()
+        tag = f"@{Path.id_tag_name}"
+        for idx, v in enumerate(self._cache):
+            key = Path(tag).get(v, _not_found_)
+            if key is _not_found_:
+                yield self._find(idx, *args, **kwargs)
+            else:
+                yield self._find(key, *args, **kwargs)
+
+            # if self._entry is None:
+            #     _entry = None
+            # elif key is _not_found_ or v is None:
+            #     _entry = self._entry.child(idx)
+            # else:
+            #     _entry = self._entry.child({tag: key})
+            # yield self._type_convert(v, idx, _entry=_entry)

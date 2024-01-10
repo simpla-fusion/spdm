@@ -426,7 +426,7 @@ class HTree(HTreeNode):
             case _:
                 return path.find(self, *args, **kwargs)
 
-    def find_cache(self, path, default_value: _T = _not_found_) -> _T:
+    def get_cache(self, path, default_value: _T = _not_found_) -> _T:
         path = as_path(path)
         res = path.get(self._cache, _not_found_)
 

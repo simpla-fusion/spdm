@@ -131,7 +131,7 @@ class Ports(Dict[Port]):
             for obj in [*args, kwargs]:
                 if isinstance(obj, Ports):
                     for k, n in self.items():
-                        n.link(obj.find_cache(k, _not_found_) or obj.find_cache(n.identifier, _not_found_))
+                        n.link(obj.get_cache(k, _not_found_) or obj.get_cache(n.identifier, _not_found_))
                 elif isinstance(obj, collections.abc.Mapping):
                     for k, n in self.items():
                         n.link(obj.get(k, obj.get(n.identifier, _not_found_)))

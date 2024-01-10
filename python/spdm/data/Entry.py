@@ -59,6 +59,9 @@ class Entry(Pluggable):
     def __str__(self) -> str:
         return f'<{self.__class__.__name__} path="{self._path}" />'
 
+    def __repr__(self) -> str:
+        return str(self._path)
+
     @property
     def __entry__(self) -> Entry:
         return self
@@ -210,7 +213,7 @@ class Entry(Pluggable):
     def keys(self) -> typing.Generator[str, None, None]:
         yield from self._path.keys(self._data)
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
 
@@ -265,21 +268,30 @@ class ChainEntry(Entry):
         return res
 
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        for idx, main_entry in enumerate(self._entrys):
+        """逐个遍历子节点，不判断重复 id
+
+        Returns:
+            typing.Generator[typing.Tuple[int, typing.Any], None, None]: _description_
+
+        Yields:
+            Iterator[typing.Generator[typing.Tuple[int, typing.Any], None, None]]: _description_
+        """
+
+        for root_entry in self._entrys:
+            yield from root_entry.child(self._path).for_each(*args, **kwargs)
+
             # 根据第一个有效 entry 中的序号，在其他 entry 中的检索子节点
-            _entry = main_entry.child(self._path)
-            if not _entry.exists:
-                continue
 
-            for k, e in _entry.for_each(*args, **kwargs):
-                # 根据子节点的序号，在其他 entry 中的检索子节点
-                entry_list = [e]
-                for o in self._entrys[idx + 1 :]:
-                    t = o.child(k)
-                    if t.exists:
-                        entry_list.append(t)
-
-                yield k, ChainEntry(*entry_list)
+            # if not _entry.exists:
+            #     continue
+            # for k, e in _entry.for_each(*args, **kwargs):
+            # 根据子节点的序号，在其他 entry 中的检索子节点
+            # entry_list = [e]
+            # for o in self._entrys[idx + 1 :]:
+            #     t = o.child(k)
+            #     if t.exists:
+            #         entry_list.append(t)
+            # yield k, ChainEntry(*entry_list)
 
     def search(self, *args, **kwargs):
         return ChainEntry(*[e.search(*args, **kwargs) for e in self._entrys])
