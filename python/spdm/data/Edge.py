@@ -101,7 +101,7 @@ class Ports(Dict[Port]):
     """
 
     def get(self, key: str, *args, **kwargs) -> Port:
-        port: Port = super().get([key] if isinstance(key, str) else key, *args, **kwargs)
+        port: Port = super().find(key)
         if (port.node is _not_found_ or port.node is None) and len(port.fragment) > 0:
             port0 = super().get(port.identifier, _not_found_)
             if isinstance(port0, Port):
@@ -111,17 +111,8 @@ class Ports(Dict[Port]):
     def put(self, key: str, value) -> None:
         return self.get(key).update(value)
 
-    def __missing__(self, key: str | int) -> Port:
-        if isinstance(key, list) and len(key) == 1:
-            key = key[0]
-
-        port = Port(path=key)
-
-        if isinstance(key, str):
-            key = [key]
-
-        super().put(key, port)
-
+    def __missing__(self, key: str) -> Port:
+        self._cache[key] = port = Port(path=key)
         return port
 
     def refresh(self, *args, **kwargs) -> Self:
@@ -137,7 +128,7 @@ class Ports(Dict[Port]):
                         n.link(obj.get(k, obj.get(n.identifier, _not_found_)))
 
         else:
-            parent: HTreeNode =as_path("../../").get(self, _not_found_)
+            parent: HTreeNode = as_path("../../").get(self, _not_found_)
             if isinstance(parent, collections.abc.Sequence):
                 parent = getattr(parent, "_parent", _not_found_)
 

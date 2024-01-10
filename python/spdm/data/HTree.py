@@ -317,10 +317,14 @@ class HTreeNode:
 null_node = HTreeNode(_not_found_)
 
 
-class HTree(HTreeNode):
-    """Hierarchical Tree:
+_T = typing.TypeVar("_T")
 
-    一种层次化的数据结构，它具有以下特性：
+
+class HTree(HTreeNode, typing.Generic[_T]):
+    """Hierarchical Tree:
+    - 其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
+
+    - 一种层次化的数据结构，它具有以下特性：
     - 树节点也可以是列表 list，也可以是字典 dict
     - 叶节点可以是标量或数组 array_type，或其他 type_hint 类型
     - 节点可以有缓存（cache)
@@ -328,6 +332,8 @@ class HTree(HTreeNode):
     - 节点可以有元数据（metadata), 包含： 唯一标识（id), 名称（name), 单位（units), 描述（description), 标签（tags), 注释（comment)
     - 任意节点都可以通过路径访问
     - `get` 返回的类型由 `type_hint` 决定，默认为 Node
+
+
 
     """
 
@@ -338,11 +344,12 @@ class HTree(HTreeNode):
     # 对后辈节点操作，支持路径
 
     def put(self, path, value, *args, _idempotent=True, **kwargs):
-        return as_path(path).update(value, *args, _idempotent=_idempotent, **kwargs)
+        return as_path(path).update(self,value, *args, _idempotent=_idempotent, **kwargs)
 
-    def get(self, path: PathLike, *args, default_value: _T = _not_found_, **kwargs) -> typing.Any:
+    def get(self, path: PathLike, *args, default_value: _T = _not_found_, **kwargs) -> _T:
         return as_path(path).find(self, *args, default_value=default_value, **kwargs)
 
+    @typing.final
     def pop(self, path, default_value=_not_found_):
         path = as_path(path)
 
@@ -354,15 +361,19 @@ class HTree(HTreeNode):
         else:
             return default_value
 
-    def __getitem__(self, path) -> typing.Any:
+    @typing.final
+    def __getitem__(self, path) -> _T:
         return self.get(path, default_value=_undefined_)
 
+    @typing.final
     def __setitem__(self, path, value) -> None:
         self.put(path, value, _idempotent=True)
 
+    @typing.final
     def __delitem__(self, path) -> None:
         return self.put(path, _not_found_, _idempotent=True)
 
+    @typing.final
     def get_cache(self, path, default_value: _T = _not_found_) -> _T:
         path = as_path(path)
         res = path.get(self._cache, _not_found_)
@@ -378,22 +389,20 @@ class HTree(HTreeNode):
     #############################################
     # 当子节点操作，不支持路径
     @typing.final
-    def children(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
+    def children(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
         """alias of for_each"""
         yield from self._for_each_(*args, **kwargs)
 
-    def __missing__(self, key) -> typing.Any:
-        raise KeyError(f"{self.__class__.__name__} can not find '{key}'! ")
+    @typing.final
+    def __iter__(self) -> typing.Generator[_T | str, None, None]:
+        """遍历 children"""
+        yield from self._for_each_()
 
     @typing.final
     def __len__(self) -> int:
         return int(self._find_(None, Path.tags.count) or 0)
 
     @typing.final
-    def __iter__(self) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
-        """遍历 children"""
-        yield from self._for_each_()
-
     def __equal__(self, other) -> bool:
         return bool(self._find_(None, Path.tags.equal, other))
 
@@ -413,25 +422,31 @@ class HTree(HTreeNode):
         return self._remove_(*args, **kwargs)
 
     @typing.final
-    def find(self, *args, **kwargs) -> typing.Any:
+    def find(self, *args, **kwargs) -> _T:
         return self._find_(*args, **kwargs)
 
     @typing.final
-    def for_each(self, *args, **kwargs) -> typing.Generator[HTreeNode, None, None]:
+    def for_each(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
         yield from self._for_each_(*args, **kwargs)
 
     # -----------------------------------------------------------------------------
     # 内部接口
+    def __missing__(self, key) -> typing.Any:
+        
+        raise KeyError(f"{self.__class__.__name__} can not find '{key}'! ")
 
     def _insert_(self, *args, **kwargs):
         return self._update_(*args, _idempotent=False, **kwargs)
 
     def _update_(self, *args, _setter=None, **kwargs):
         if callable(_setter):
-            return _setter(self, *args, **kwargs)
+            _setter(self, *args, **kwargs)
+        elif len(args) == 2:
+            self._cache = Path._do_update(self._cache, [], {args[0]: args[1]}, **kwargs)
         else:
             self._cache = Path._do_update(self._cache, [], *args, **kwargs)
-            return self
+
+        return self
 
     def _remove_(self, key, *args, _deleter=None, **kwargs) -> bool:
         """删除节点：
@@ -443,11 +458,11 @@ class HTree(HTreeNode):
         else:
             return self._update_({key: None}, *args, **kwargs)
 
-    def _find_(self, key, *args, _getter=None, default_value=_not_found_, **kwargs) -> typing.Any:
+    def _find_(self, key, *args, _getter=None, default_value=_undefined_, **kwargs) -> _T:
         """获取子节点/或属性"""
 
         if isinstance(key, str) and key.startswith("@"):
-            return Path._do_find(self._metadata, key[1:], *args, default_value=default_value, **kwargs)
+            return Path._do_find(self._metadata, [key[1:]], *args, default_value=default_value, **kwargs)
 
         value = Path._do_find(self._cache, [key], *args, default_value=_not_found_)
 
@@ -469,11 +484,14 @@ class HTree(HTreeNode):
         if len(args) == 0:
             _entry = self._entry.child(key) if self._entry is not None else None
 
-            value = self._type_convert(value, key, _entry=_entry, default_value=default_value,**kwargs)
+            if value is _not_found_ and default_value is _undefined_ and not _entry.exists:
+                value = self.__missing__(key)
+
+            value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
 
         return value
 
-    def _for_each_(self, *args, **kwargs) -> typing.Generator[HTreeNode, None, None]:
+    def _for_each_(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
         if (self._cache is _not_found_ or len(self._cache) == 0) and self._entry is not None:
             for k, v in self._entry.for_each(*args, **kwargs):
                 if not isinstance(v, Entry):
@@ -497,7 +515,13 @@ class HTree(HTreeNode):
 
         cls = getattr(self, "__orig_class__", self.__class__)
 
-        return typing.get_type_hints(cls).get(key, None) if isinstance(key, str) else None
+        tp = typing.get_type_hints(cls).get(key, None) if isinstance(key, str) else None
+
+        if tp is None:
+            tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
+            tp = tp[-1] if len(tp) > 0 else None
+
+        return tp
 
     def _type_convert(
         self,
@@ -603,41 +627,11 @@ def as_htree(*args, **kwargs):
     return res
 
 
-Node = HTree
-
-_T = typing.TypeVar("_T")
-
-
-class Container(HTree, typing.Generic[_T]):
-    """
-    带有type hint的HTree，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
-    """
-
-    def _type_hint_(self, key: str | int = None) -> typing.Type:
-        """当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
-        当 key 为字符串时，获得属性 property 的 type_hint
-        """
-
-        tp = super()._type_hint_(key) if isinstance(key, str) else None
-
-        if tp is None:
-            tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
-            tp = tp[-1] if len(tp) > 0 else None
-
-        return tp
-
-
-class Dict(Container[_T]):
+class Dict(HTree[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if self._cache is _not_found_:
             self._cache = {}
-
-    def get(self, *args, **kwargs) -> _T:
-        return super().get(*args, **kwargs)
-
-    def __getitem__(self, path) -> _T:
-        return super().__getitem__(path)
 
     def items(self) -> typing.Generator[typing.Tuple[str, _T], None, None]:
         yield from self.children()
@@ -654,14 +648,11 @@ class Dict(Container[_T]):
 collections.abc.MutableMapping.register(Dict)
 
 
-class List(Container[_T]):
+class List(HTree[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if self._cache is _not_found_:
             self._cache = []
-
-    def __iter__(self) -> Generator[_T, None, None]:
-        yield from self._for_each_()
 
     def append(self, other):
         self._update_(other, _idempotent=False, _extend=False)

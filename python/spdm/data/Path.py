@@ -615,10 +615,7 @@ class Path(list):
 
         返回修改后的target
         """
-        if False:  # hasattr(target.__class__, "update") and not isinstance(target, dict):
-            target.update(self[:], *args, **kwargs)
-        else:
-            return Path._do_update(target, self[:], *args, **kwargs)
+        return Path._do_update(target, self[:], *args, **kwargs)
 
     def remove(self, target: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         """根据路径（self）删除 target 中的元素。
@@ -629,26 +626,17 @@ class Path(list):
 
         返回修改后的target和删除的元素的个数
         """
-        if False:  # hasattr(target.__class__, "remove"):
-            return target.remove(self[:], *args, **kwargs)
-        else:
-            return Path._do_remove(target, self[:], *args, **kwargs)
+        return Path._do_remove(target, self[:], *args, **kwargs)
 
     def find(self, source: typing.Any, *args, **kwargs) -> typing.Any:
         """
         根据路径（self）查询元素。只读，不会修改 target
         对应 RESTful 中的 read，幂等操作
         """
-        if False:  # hasattr(source.__class__, "find"):
-            return source.find(self[:], *args, **kwargs)
-        else:
-            return Path._do_find(source, self[:], *args, **kwargs)
+        return Path._do_find(source, self[:], *args, **kwargs)
 
     def for_each(self, source, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, typing.Any], None, None]:
-        if False:  # hasattr(source.__class__, "for_each"):
-            yield from source.for_each(self[:], *args, **kwargs)
-        else:
-            yield from Path._do_for_each(source, self[:], *args, **kwargs)
+        yield from Path._do_for_each(source, self[:], *args, **kwargs)
 
     def search(self, source, query, *args, **kwargs) -> int | None:
         return Path._do_find(source, self[:], Path.tags.search, query, *args, **kwargs)
@@ -792,6 +780,9 @@ class Path(list):
 
                     if value is not attr:
                         setattr(target, key, value)
+
+            elif hasattr(target.__class__, "_update_"):
+                target._update_(key, Path._do_update(target._find_(key, _not_found_), *args, **kwargs))
 
             elif isinstance(target, collections.abc.MutableMapping):
                 target[key] = Path._do_update(target.get(key, _not_found_), path[1:], *args, **kwargs)

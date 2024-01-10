@@ -106,10 +106,10 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def update(self, *args, **kwargs):
+    def _update_(self, *args, **kwargs):
         super()._update_(*args, **kwargs)
 
-    def find(self, key: str | int, *args, **kwargs) -> _TNode | QueryResult[_T]:
+    def _find_(self, key: str | int, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
 
         if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
@@ -133,17 +133,6 @@ class AoS(List[_TNode]):
 
         return value
 
-    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
-        return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)
-
-    def dump(self, entry: Entry, **kwargs) -> None:
-        """将数据写入 entry"""
-        entry.insert([{}] * len(self._cache))
-        for idx, value in enumerate(self._cache):
-            if isinstance(value, HTree):
-                value.dump(entry.child(idx), **kwargs)
-            else:
-                entry.child(idx).insert(value)
 
     def _update_cache(self):
         if not (self._cache is _not_found_ or len(self._cache) == 0) or self._entry is None:
@@ -157,15 +146,15 @@ class AoS(List[_TNode]):
 
         self._cache = [{tag: key} for key in keys]
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
+    def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
         self._update_cache()
         tag = f"@{Path.id_tag_name}"
         for idx, v in enumerate(self._cache):
             key = Path(tag).get(v, _not_found_)
             if key is _not_found_:
-                yield self.find(idx, *args, **kwargs)
+                yield self._find_(idx, *args, **kwargs)
             else:
-                yield self.find(key, *args, **kwargs)
+                yield self._find_(key, *args, **kwargs)
 
             # if self._entry is None:
             #     _entry = None
@@ -174,3 +163,15 @@ class AoS(List[_TNode]):
             # else:
             #     _entry = self._entry.child({tag: key})
             # yield self._type_convert(v, idx, _entry=_entry)
+                
+    def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
+        return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)
+
+    def dump(self, entry: Entry, **kwargs) -> None:
+        """将数据写入 entry"""
+        entry.insert([{}] * len(self._cache))
+        for idx, value in enumerate(self._cache):
+            if isinstance(value, HTree):
+                value.dump(entry.child(idx), **kwargs)
+            else:
+                entry.child(idx).insert(value)

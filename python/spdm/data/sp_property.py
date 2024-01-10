@@ -96,7 +96,7 @@ class PropertyTree(SpTree):
         if key.startswith("_"):
             return super().__getattribute__(key)
         else:
-            res = self.__get_property__(key, *args, _type_hint=None, **kwargs)
+            res = self.find(key, *args, **kwargs)
             if isinstance(res, dict):
                 return PropertyTree(res, _parent=self)
             elif isinstance(res, list) and (len(res) == 0 or isinstance(res[0], (dict, HTree))):
@@ -104,19 +104,11 @@ class PropertyTree(SpTree):
             else:
                 return res
 
-    def __getitem__(self, *args, **kwargs):
-        return self.__get_property__(*args, _type_hint=PropertyTree | None, **kwargs)
+    def __missing__(self, key) -> typing.Any:
+        return _not_found_
 
-    def __setitem__(self, *args, **kwargs):
-        return self.__set_property__(*args, **kwargs)
-
-    def __delitem__(self, key: str):
-        return self.__del_property__(key)
-
-    def __iter__(self) -> typing.Generator[_T, None, None]:
-        """遍历 children"""
-        for v in self.children():
-            yield v
+    def _type_hint_(self, *args, **kwargs):
+        return PropertyTree
 
     def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
         if entry is None:
@@ -274,7 +266,7 @@ class SpProperty:
                     self.property_name,  # property_name 必然是 identifier
                     _type_hint=self.type_hint,
                     _getter=self.getter,
-                    default_value=_undefined_,
+                    default_value=_not_found_,
                     **self.metadata,
                 )
                 if value is _not_found_:  # alias 不改变 _parent
