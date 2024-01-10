@@ -62,15 +62,6 @@ from ..utils.tags import _not_found_, _undefined_
 class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
 
-    def __get_property__(self, _name: str, *args, **kwargs) -> SpTree:
-        return self.find(_name, *args, **kwargs)
-
-    def __set_property__(self, _name: str, value: typing.Any = None, *args, **kwargs) -> None:
-        self.update(_name, value, *args, **kwargs)
-
-    def __del_property__(self, _name: str, *args, **kwargs):
-        self.remove(_name, *args, **kwargs)
-
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
         for k, prop in inspect.getmembers(self.__class__, lambda c: is_sp_property(c)):
@@ -268,7 +259,7 @@ class SpProperty:
             logger.error("Can not use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance.__set_property__(self.property_name, value, setter=self.setter)
+            instance._update_({self.property_name: value}, setter=self.setter)
 
     def __get__(self, instance: SpTree, owner_cls=None) -> _T:
         if instance is None:
@@ -279,22 +270,22 @@ class SpProperty:
 
         with self.lock:
             if self.alias is not None:
-                value = instance.__get_property__(
-                    self.property_name,
+                value = instance._find_(
+                    self.property_name,  # property_name 必然是 identifier
                     _type_hint=self.type_hint,
                     _getter=self.getter,
                     default_value=_undefined_,
                     **self.metadata,
                 )
                 if value is _not_found_:  # alias 不改变 _parent
-                    value = instance.__get_property__(
-                        self.alias,
+                    value = instance.get(
+                        self.alias,  # alias 可以是路径
                         _type_hint=self.type_hint,
                         default_value=self.default_value,
                         _parent=_not_found_,
                     )
             else:
-                value = instance.__get_property__(
+                value = instance._find_(
                     self.property_name,
                     _type_hint=self.type_hint,
                     _getter=self.getter,
@@ -311,7 +302,7 @@ class SpProperty:
 
     def __delete__(self, instance: SpTree) -> None:
         with self.lock:
-            instance.__del_property__(self.property_name, deleter=self.deleter)
+            instance._remove_(self.property_name, deleter=self.deleter)
 
 
 def sp_property(getter: typing.Callable[..., _T] | None = None, **kwargs) -> _T:

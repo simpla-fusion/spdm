@@ -24,7 +24,7 @@ class TimeSlice(SpTree):
         return self._iteration
 
     def refresh(self, *args, **kwargs):
-        current = self.update(*args, **kwargs)
+        current = self._update_(*args, **kwargs)
         current._iteration += 1
         return current
 
@@ -90,7 +90,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
     @property
     def current(self) -> _TSlice:
-        return self._find(0)
+        return self._find_(0)
 
     @property
     def previous(self) -> typing.Generator[_TSlice, None, None]:
@@ -142,7 +142,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return pos, time
 
-    def _find(self, idx: int, *args, **kwargs) -> _TSlice:
+    def _find_(self, idx: int, *args, **kwargs) -> _TSlice:
         if not isinstance(idx, int):
             return _not_found_
         elif not self.is_initializied:

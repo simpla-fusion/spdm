@@ -106,21 +106,14 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def __getitem__(self, path) -> _TNode:
-        if isinstance(path, str) and path.isidentifier() or isinstance(path, int):
-            return self._find(path)
-        else:
-            return super().__getitem__(path)
+    def update(self, *args, **kwargs):
+        super()._update_(*args, **kwargs)
 
-    def _update(self, key, *args, **kwargs):
-        if not isinstance(key, str):
-            super().update(key, *args, **kwargs)
-
-    def _find(self, key: PathLike, *args, **kwargs) -> _TNode | QueryResult[_T]:
+    def find(self, key: str | int, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """
 
         if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
-            return super()._find(key, *args, **kwargs)
+            return super()._find_(key, *args, **kwargs)
 
         self._update_cache()
 
@@ -170,9 +163,9 @@ class AoS(List[_TNode]):
         for idx, v in enumerate(self._cache):
             key = Path(tag).get(v, _not_found_)
             if key is _not_found_:
-                yield self._find(idx, *args, **kwargs)
+                yield self.find(idx, *args, **kwargs)
             else:
-                yield self._find(key, *args, **kwargs)
+                yield self.find(key, *args, **kwargs)
 
             # if self._entry is None:
             #     _entry = None

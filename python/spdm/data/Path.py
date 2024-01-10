@@ -939,6 +939,9 @@ class Path(list):
                 else:
                     res = []
 
+            elif hasattr(source.__class__, "_find_"):
+                res = Path._do_find(source._find_(key, default_value=_not_found_), path[1:], *args, **kwargs)
+
             elif isinstance(source, collections.abc.Mapping):
                 res = Path._do_find(source.get(key, _not_found_), path[1:], *args, **kwargs)
 

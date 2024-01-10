@@ -101,7 +101,7 @@ class TestHTree(unittest.TestCase):
     def test_update(self):
         d = Dict(deepcopy(test_data))
 
-        d.update({"d": {"g": 5}})
+        d._update_({"d": {"g": 5}})
 
         self.assertEqual(d["d"]["e"]._value_, "{name} is {age}")
         self.assertEqual(d["d"]["f"]._value_, "{address}")
@@ -110,8 +110,8 @@ class TestHTree(unittest.TestCase):
     def test_insert(self):
         d0 = Dict(deepcopy(test_data))
 
-        d0.insert({"a": "hello world {name}!"})
-        d0.update({"d": {"g": 5}})
+        d0._insert_({"a": "hello world {name}!"})
+        d0._update_({"d": {"g": 5}})
 
         self.assertEqual(d0["d"]["e"]._value_, "{name} is {age}")
         self.assertEqual(d0["d"]["f"]._value_, "{address}")
@@ -119,7 +119,7 @@ class TestHTree(unittest.TestCase):
 
         d1 = List([])
 
-        d1.insert({"a": [1], "b": 2})
+        d1._insert_({"a": [1], "b": 2})
 
         self.assertEqual(d1[0]["a"][0]._value_, 1)
         self.assertEqual(d1[0]["b"]._value_, 2)
@@ -152,8 +152,8 @@ class TestHTree(unittest.TestCase):
         d["a"] = "hello world {name}!"
         self.assertEqual(d["a"]._value_, "hello world {name}!")
 
-        d["c"].insert(1.23455)
-        d["c"].insert({"a": "hello world", "b": 3.141567})
+        d["c"]._insert_(1.23455)
+        d["c"]._insert_({"a": "hello world", "b": 3.141567})
 
         self.assertEqual(d["c"][0]._value_, 1.23455)
         self.assertEqual(d.get("c/0"), 1.23455)
@@ -162,7 +162,7 @@ class TestHTree(unittest.TestCase):
 
     def test_type_hint(self):
         d1 = List[HTree]([])
-        d1.insert({"a": 1, "b": 2})
+        d1._insert_({"a": 1, "b": 2})
 
         self.assertIsInstance(d1[0], HTree)
 
