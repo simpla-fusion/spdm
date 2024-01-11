@@ -144,6 +144,10 @@ def is_real(d: typing.Any) -> bool:
     return not np.iscomplexobj(d)
 
 
+def is_tree(d) -> bool:
+    return isinstance(d, (collections.abc.Mapping, collections.abc.Sequence)) and not isinstance(d, str)
+
+
 # def is_scalar(d: typing.Any) -> bool:
 #     return isinstance(d, (int, float, complex, np.floating, np.complexfloating)) or hasattr(d.__class__, "__float__")
 is_scalar = np.isscalar
@@ -379,7 +383,7 @@ def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.
 
     elif tp in primary_type:
         value = getattr(value, "__value__", value)
-        
+
         if value is not _not_found_:
             try:
                 tmp = tp(value)
