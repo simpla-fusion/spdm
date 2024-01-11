@@ -262,14 +262,16 @@ class SpProperty:
 
         with self.lock:
             if self.alias is not None:
-                value = instance._find_(
-                    self.property_name,  # property_name 必然是 identifier
-                    _type_hint=self.type_hint,
-                    _getter=self.getter,
-                    default_value=_not_found_,
-                    **self.metadata,
-                )
-                if value is _not_found_:  # alias 不改变 _parent
+                try:
+                    value = instance._find_(
+                        self.property_name,  # property_name 必然是 identifier
+                        _type_hint=self.type_hint,
+                        _getter=self.getter,
+                        default_value=_undefined_,
+                        **self.metadata,
+                    )
+                except KeyError as error:
+                    # alias 不改变 _parent
                     value = instance.get(
                         self.alias,  # alias 可以是路径
                         _type_hint=self.type_hint,

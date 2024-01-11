@@ -661,8 +661,8 @@ class Path(list):
     ###########################################################
 
     @staticmethod
-    def _apply_op(obj: typing.Any, op: Path.tags, *args, **kwargs):
-        if op is Path.tags.find:
+    def _apply_op(obj: typing.Any, op: Path.tags = None, *args, **kwargs):
+        if op is Path.tags.find or op is None:
             return obj
 
         elif isinstance(op, Path.tags):
@@ -721,14 +721,20 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update(target: typing.Any, path: list, *args, **kwargs) -> typing.Any:
+    def _do_update(target: typing.Any, *args, _idempotent=True, **kwargs) -> typing.Any:
+        if len(args) <= 1:
+            path = None
+        else:
+            path = args[0]
+            args = args[1:]
+
         if path is None or len(path) == 0:
             if len(args) > 0 and isinstance(args[0], Path.tags):
                 target = Path._apply_op(target, *args, **kwargs)
 
             else:
                 idempotent = kwargs.get("_idempotent", True)
-                extend = kwargs.get("_extend", False)
+                extend = not idempotent
 
                 for value in args:
                     if value is _not_found_:  # 空操作
@@ -828,7 +834,133 @@ class Path(list):
         return Path._do_update(target, path, None, *args, **kwargs)
 
     @staticmethod
-    def _do_find(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
+    def _do_find(source: typing.Any, path: list, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        if path is None:
+            path = []
+        elif not isinstance(path, list):
+            path = [path]
+
+        obj = source
+
+        for idx, key in enumerate(path):
+            if key is None or key is Path.tags.current or obj is _not_found_ or obj is None:
+                continue
+
+            elif (
+                isinstance(key, str)
+                and key.isidentifier()
+                and (attr := getattr(obj, key, _not_found_)) is not _not_found_
+            ):
+                obj = attr
+                continue
+
+            elif len(path) > 1 and path[1] is Path.tags.next:
+                if isinstance(key, int):
+                    new_key = key + 1
+                else:
+                    raise NotImplementedError(f"{type(obj)} {path}")
+
+                res = Path._do_find(obj, [new_key] + path[2:], *args, **kwargs)
+
+            elif len(path) > 1 and path[1] is Path.tags.prev:
+                if isinstance(key, int):
+                    new_key = key - 1
+                else:
+                    raise NotImplementedError(f"{type(obj)} {path}")
+
+                res = Path._do_find(obj, [new_key] + path[2:], *args, **kwargs)
+
+            elif key is Path.tags.parent:
+                obj = getattr(obj, "_parent", _not_found_)
+
+            elif key is Path.tags.ancestors:
+                # 逐级查找上层 _parent, 直到找到
+                while obj is not None and obj is not _not_found_:
+                    if not isinstance(obj, collections.abc.Sequence):
+                        obj = Path._do_find(obj, path[1:], *args, default_value=_not_found_, **kwargs)
+                        if obj is not _not_found_:
+                            break
+                    obj = getattr(obj, "_parent", _not_found_)
+                    # Path._do_find(obj, [Path.tags.parent], default_value=_not_found_)
+                else:
+                    obj = _not_found_
+
+                break
+
+            elif key is Path.tags.descendants:
+                # 遍历访问所有叶节点
+                if isinstance(obj, collections.abc.Mapping):
+                    obj = {
+                        k: Path._do_find(v, [Path.tags.descendants] + path[1:], *args, **kwargs) for k, v in obj.items()
+                    }
+
+                elif isinstance(obj, collections.abc.Iterable):
+                    obj = [Path._do_find(v, [Path.tags.descendants] + path[1:], *args, **kwargs) for v in obj]
+
+                elif len(path) > 0:
+                    obj = Path._do_find(obj, path[1:], *args, **kwargs)
+
+            elif key is Path.tags.children:
+                if isinstance(obj, collections.abc.Mapping):
+                    obj = {k: Path._do_find(v, path[1:], *args, **kwargs) for k, v in obj.items()}
+
+                elif isinstance(obj, collections.abc.Iterable):
+                    obj = [Path._do_find(v, path[1:], *args, **kwargs) for v in obj]
+
+                else:
+                    obj = _not_found_
+                break
+
+            elif key is Path.tags.slibings:
+                parent = getattr(obj, "_parent", _not_found_)
+
+                if isinstance(parent, collections.abc.Mapping):
+                    obj = {k: Path._do_find(v, path[1:], *args, **kwargs) for k, v in parent.items() if v is not obj}
+
+                elif isinstance(parent, collections.abc.Iterable):
+                    obj = [Path._do_find(v, path[1:], *args, **kwargs) for v in parent if v is not obj]
+
+                else:
+                    obj = []
+                break
+
+            elif hasattr(obj.__class__, "_find_"):
+                obj = obj._find_(key, default_value=_not_found_)
+
+            elif isinstance(obj, collections.abc.Mapping):
+                obj = obj.get(key, _not_found_)
+
+            elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+                if isinstance(key, int):
+                    obj = obj[key]
+
+                elif isinstance(key, slice):
+                    obj = [Path._do_find(s, path[1:], *args, **kwargs) for s in obj[key]]
+                    break
+
+                else:
+                    idx, value = Path._op_search(obj, key)
+
+                    if idx is None:
+                        obj = _not_found_
+                    else:
+                        obj = value
+
+            else:
+                obj = _not_found_
+        else:
+            obj = Path._apply_op(obj, *args, **kwargs)
+
+        if obj is _not_found_:
+            obj = default_value
+
+        # if idx < len(path) - 1 and obj is _not_found_:
+        #     raise KeyError(f"Path not found {path[:idx + 1]}")
+
+        return obj
+
+    @staticmethod
+    def _do_find_recurisve(source: typing.Any, path: list, *args, **kwargs) -> typing.Any:
         if not isinstance(path, list):
             raise TypeError(path)
 
@@ -850,6 +982,7 @@ class Path(list):
 
             if is_attr:
                 pass
+
             elif key is None:
                 res = Path._do_find(source, path[1:], *args, **kwargs)
 

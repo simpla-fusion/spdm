@@ -55,8 +55,7 @@ class QueryResult(HTree):
 
         return value
 
-    def __iter__(self) -> typing.Generator[typing.Tuple[str, _T | HTree] | _T | HTree, None, None]:
-        raise NotImplementedError(f"TODO:")
+
 
     @staticmethod
     def _default_reducer(first: typing.Any, second: typing.Any) -> typing.Any:

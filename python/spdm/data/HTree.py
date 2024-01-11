@@ -344,7 +344,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
     # 对后辈节点操作，支持路径
 
     def put(self, path, value, *args, _idempotent=True, **kwargs):
-        return as_path(path).update(self,value, *args, _idempotent=_idempotent, **kwargs)
+        return as_path(path).update(self, value, *args, _idempotent=_idempotent, **kwargs)
 
     def get(self, path: PathLike, *args, default_value: _T = _not_found_, **kwargs) -> _T:
         return as_path(path).find(self, *args, default_value=default_value, **kwargs)
@@ -432,7 +432,6 @@ class HTree(HTreeNode, typing.Generic[_T]):
     # -----------------------------------------------------------------------------
     # 内部接口
     def __missing__(self, key) -> typing.Any:
-        
         raise KeyError(f"{self.__class__.__name__} can not find '{key}'! ")
 
     def _insert_(self, *args, **kwargs):
@@ -441,8 +440,6 @@ class HTree(HTreeNode, typing.Generic[_T]):
     def _update_(self, *args, _setter=None, **kwargs):
         if callable(_setter):
             _setter(self, *args, **kwargs)
-        elif len(args) == 2:
-            self._cache = Path._do_update(self._cache, [], {args[0]: args[1]}, **kwargs)
         else:
             self._cache = Path._do_update(self._cache, [], *args, **kwargs)
 
@@ -456,38 +453,51 @@ class HTree(HTreeNode, typing.Generic[_T]):
         if callable(_deleter):
             return _deleter(self, key)
         else:
-            return self._update_({key: None}, *args, **kwargs)
+            return self._update_(key, None, *args, **kwargs)
 
-    def _find_(self, key, *args, _getter=None, default_value=_undefined_, **kwargs) -> _T:
-        """获取子节点/或属性"""
+    def _find_(self, key, *args, _getter=None, default_value=_not_found_, **kwargs) -> _T:
+        """获取子节点/或属性
+        搜索子节点的优先级  cache > getter > entry > default_value
+        当 default_value 为 _undefined_ 时，若 cache 中找不到节点，则从 entry 中获得
+        
+        """
 
         if isinstance(key, str) and key.startswith("@"):
             return Path._do_find(self._metadata, [key[1:]], *args, default_value=default_value, **kwargs)
 
-        value = Path._do_find(self._cache, [key], *args, default_value=_not_found_)
+        elif len(args) > 0:
+            value = Path._do_find(self._cache, [key], *args, default_value=_not_found_, **kwargs)
+            if value is _not_found_:
+                if self._entry is not None:
+                    value = self._entry.find([key], *args, default_value=default_value, **kwargs)
+                else:
+                    value = default_value
+            return value
 
-        if value is not _not_found_:
-            pass
+        else:
+            value = Path._do_find(self._cache, [key], default_value=_not_found_)
 
-        elif callable(_getter):
-            if get_positional_argument_count(_getter) == 2:
-                value = _getter(self, key)
-            else:
-                value = _getter(self)
-
-            if len(args) > 0:
-                value = Path._do_find(value, [], *args)
-
-        elif self._entry is not None and len(args) > 0:
-            value = self._entry.get(key, *args)
-
-        if len(args) == 0:
             _entry = self._entry.child(key) if self._entry is not None else None
 
-            if value is _not_found_ and default_value is _undefined_ and not _entry.exists:
+            if value is _not_found_ and callable(_getter):
+                if get_positional_argument_count(_getter) == 2:
+                    value = _getter(self, key)
+                else:
+                    value = _getter(self)
+
+            if value is _not_found_ and _entry is not None and default_value is _undefined_:
+                value = _entry.get(default_value=_not_found_)
+                _entry = None
+
+            if value is _not_found_ and _entry is None:
+                value = default_value
+                default_value = _not_found_
+
+            if value is _undefined_:
                 value = self.__missing__(key)
 
-            value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
+            elif value is not _not_found_ or _entry is not None:
+                value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
 
         return value
 
