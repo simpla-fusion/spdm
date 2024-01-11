@@ -721,54 +721,71 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update_one(target, value, _idempotent=True):
-        idempotent = _idempotent
-        extend = not idempotent
-        if is_tree(value) and len(value) == 0:
+    def _do_update_one(target, *args, _idempotent=True, **kwargs):
+        if len(args) > 0 and target is args[0]:
             pass
 
-        elif target is _not_found_:
-            target = value
-
         elif hasattr(target.__class__, "_update_"):
-            target._update_(value, _idempotent=_idempotent)
+            target._update_(*args, _idempotent=_idempotent, **kwargs)
 
-        elif isinstance(value, collections.abc.Mapping) and isinstance(target,collections.abc.Mapping) :
-            for k, v in value.items():
-                    target = Path._do_update(target, as_path(k)[:], v, _idempotent=_idempotent)
-
-        elif idempotent:
-            target = value
-
-        elif isinstance(target, collections.abc.MutableSequence):
-            if extend and isinstance(value, (list)):
-                target.extend(value)
-            else:
-                target.append(value)
-        elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            target = [target, *value]
         else:
-            target = [target, value]
+            idempotent = _idempotent
+            extend = not idempotent
+
+            if len(kwargs) > 0:
+                args = [*args, kwargs]
+
+            for value in args:
+                if target is value:
+                    pass
+
+                elif target is _not_found_:
+                    target = value
+
+                elif isinstance(value, collections.abc.Mapping) and isinstance(target, collections.abc.Mapping):
+                    for k, v in value.items():
+                        Path._do_update(target, as_path(k)[:], v, _idempotent=_idempotent)
+
+                elif idempotent:
+                    target = value
+
+                elif isinstance(target, collections.abc.MutableSequence):
+                    if extend and isinstance(value, (list)):
+                        target.extend(value)
+                    else:
+                        target.append(value)
+                elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                    target = [target, *value]
+
+                else:
+                    target = [target, value]
 
         return target
 
     @staticmethod
     def _do_update(target: typing.Any, *args, **kwargs) -> typing.Any:
         if len(args) <= 1:
-            path = None
+            path = []
         else:
             path = args[0]
             args = args[1:]
 
-        for idx, key in enumerate(path):
-            if target is _not_found_ or target is None:
-                target = {} if isinstance(key, str) else []
+        if len(path) == 0:
+            return Path._do_update_one(target, *args, **kwargs)
 
+        if target is _not_found_ or target is None:
+            if len(path) > 0 and isinstance(path[0], str):
+                target = {}
+            else:
+                target = []
+
+        obj = target
+        for idx, key in enumerate(path):
             if key is None or key is Path.tags.current:
                 continue
 
             elif key is Path.tags.parent:
-                target = getattr(target, "_parent", _not_found_)
+                obj = getattr(obj, "_parent", _not_found_)
 
             elif isinstance(key, (Path.tags, slice)):
                 raise NotImplementedError(key)
@@ -776,46 +793,43 @@ class Path(list):
             elif isinstance(key, Query):
                 query = key
                 _only_first = kwargs.get("_only_first", True)
-                for v in Path._do_for_each(target, query, _only_first=_only_first):
+                for v in Path._do_for_each(obj, query, _only_first=_only_first):
                     Path._do_update(v, path[1:], *args, **kwargs)
 
-            elif isinstance(key, str) and key.isidentifier() and hasattr(target.__class__, key):
-                element = getattr(target, key, _not_found_)
+            elif isinstance(key, str) and key.isidentifier() and hasattr(obj.__class__, key):
+                element = getattr(obj, key, _not_found_)
                 if not is_tree(element):
-                    setattr(target, key, Path._do_update(element, path[1:], *args, **kwargs))
+                    setattr(obj, key, Path._do_update(element, path[1:], *args, **kwargs))
                     break
                 else:
-                    target = element
-            elif isinstance(target, collections.abc.MutableMapping) and isinstance(key, str):
-                element = target.get(key, _not_found_)
+                    obj = element
+
+            elif isinstance(obj, collections.abc.MutableMapping) and isinstance(key, str):
+                element = obj.get(key, _not_found_)
                 if not is_tree(element) or element is _not_found_:
-                    target[key] = Path._do_update(element, path[idx + 1 :], *args, **kwargs)
+                    value = Path._do_update(element, path[idx + 1 :], *args, **kwargs)
+                    obj[key] = value
                     break
                 else:
-                    target = element
+                    obj = element
 
-            elif isinstance(target, collections.abc.MutableSequence) and isinstance(key, int):
-                if key >= (len(target)):
-                    target.extend([_not_found_] * (key - len(target) + 1))
+            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, int):
+                if key >= (len(obj)):
+                    obj.extend([_not_found_] * (key - len(obj) + 1))
 
-                element = target[key]
+                element = obj[key]
 
                 if not is_tree(element):
-                    target[key] = Path._do_update(element, path[1:], *args, **kwargs)
+                    obj[key] = Path._do_update(element, path[1:], *args, **kwargs)
                     break
                 else:
-                    target = element
+                    obj = element
+
             else:
-                raise TypeError(f"Can not update {(target)}  key='{path[:idx+1]}'")
+                raise TypeError(f"Can not update {obj}  key='{key}'")
 
         else:
-            if hasattr(target.__class__, "_update_"):
-                target = target._update_(*args, **kwargs)
-            else:
-                idempotent = kwargs.pop("_idempotent", True)
-
-                for d in [*args, kwargs]:
-                    target = Path._do_update_one(target, d, _idempotent=idempotent)
+            obj = Path._do_update_one(obj, *args, **kwargs)
 
         return target
 
@@ -1262,7 +1276,8 @@ class Path(list):
         elif isinstance(source, collections.abc.Mapping):
             for k, v in source.items():
                 yield k, Path._do_find(v, suffix, *args, **kwargs)
-        else:
+
+        elif source is not _not_found_:
             logger.warning(f"{type(source)} is not iterable!")
 
     ####################################################

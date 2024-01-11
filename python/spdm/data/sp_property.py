@@ -223,6 +223,8 @@ class SpProperty:
         if self.getter is not None:
             self.doc += self.getter.__doc__ or ""
 
+        if name == "v_external":
+            pass
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
