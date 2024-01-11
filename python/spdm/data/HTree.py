@@ -68,27 +68,19 @@ class HTreeNode:
         if not isinstance(_entry, list):
             raise RuntimeError(f"Can not parser _entry {_entry}")
 
-        _entry = sum([e if isinstance(e, list) else [e] for e in _entry if e is not None and e is not _not_found_], [])
+        _entry = open_entry(
+            sum([e if isinstance(e, list) else [e] for e in _entry if e is not None and e is not _not_found_], [])
+        )
+
+        default_value = metadata.pop("default_value", _not_found_)
+
+        if default_value is not _not_found_:
+            _cache = update_tree(deepcopy(default_value), _cache)
 
         return _cache, _entry, _parent, metadata
 
     def __init__(self, *args, **kwargs) -> None:
-        _cache, _entry, _parent, metadata = HTreeNode._parser_args(*args, **kwargs)
-
-        self._parent = _parent
-
-        self._entry = open_entry(_entry)
-
-        self._metadata = metadata
-
-        default_value = self._metadata.get("default_value", _not_found_)
-
-        if _cache is _not_found_:
-            self._cache = default_value
-        elif isinstance(default_value, collections.abc.Mapping):
-            self._cache = update_tree(deepcopy(default_value), _cache)
-        else:
-            self._cache = _cache
+        self._cache, self._entry, self._parent, self._metadata = self.__class__._parser_args(*args, **kwargs)
 
     def __copy__(self) -> Self:
         if isinstance(self._cache, dict):
@@ -224,7 +216,7 @@ class HTreeNode:
         return self._cache is None and self._entry is None
 
     def __empty__(self) -> bool:
-        return (self._cache is _not_found_ or len(self._cache) == 0) and (self._entry is None or len(self._entry) == 0)
+        return (self._cache is _not_found_ or len(self._cache) == 0) and (self._entry is None)
 
     def __bool__(self) -> bool:
         return self.__null__() or self.__empty__() or bool(self.__value__)
@@ -346,8 +338,8 @@ class HTree(HTreeNode, typing.Generic[_T]):
     def put(self, path, value, *args, _idempotent=True, **kwargs):
         return as_path(path).update(self, value, *args, _idempotent=_idempotent, **kwargs)
 
-    def get(self, path: PathLike, *args, default_value: _T = _not_found_, **kwargs) -> _T:
-        return as_path(path).find(self, *args, default_value=default_value, **kwargs)
+    def get(self, path: PathLike, default_value: _T = _not_found_, **kwargs) -> _T:
+        return as_path(path).find(self, default_value=default_value, **kwargs)
 
     @typing.final
     def pop(self, path, default_value=_not_found_):
@@ -415,6 +407,8 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     @typing.final
     def update(self, *args, **kwargs) -> None:
+        if len(args) <= 1:
+            args = [None, *args]
         return self._update_(*args, **kwargs)
 
     @typing.final
@@ -437,11 +431,11 @@ class HTree(HTreeNode, typing.Generic[_T]):
     def _insert_(self, *args, **kwargs):
         return self._update_(*args, _idempotent=False, **kwargs)
 
-    def _update_(self, *args, _setter=None, **kwargs):
+    def _update_(self, key, value, *args, _setter=None, **kwargs):
         if callable(_setter):
-            _setter(self, *args, **kwargs)
+            _setter(self, key, value, *args, **kwargs)
         else:
-            self._cache = Path._do_update(self._cache, [], *args, **kwargs)
+            self._cache = Path._do_update(self._cache, [key], value, *args, **kwargs)
 
         return self
 
@@ -459,7 +453,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
         """获取子节点/或属性
         搜索子节点的优先级  cache > getter > entry > default_value
         当 default_value 为 _undefined_ 时，若 cache 中找不到节点，则从 entry 中获得
-        
+
         """
 
         if isinstance(key, str) and key.startswith("@"):
@@ -476,6 +470,10 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
         else:
             value = Path._do_find(self._cache, [key], default_value=_not_found_)
+
+            if isinstance(default_value, dict):
+                value = update_tree(deepcopy(default_value), value)
+                default_value = _not_found_
 
             _entry = self._entry.child(key) if self._entry is not None else None
 
@@ -602,6 +600,8 @@ class HTree(HTreeNode, typing.Generic[_T]):
         elif _name is None:
             pass
         else:
+            if _name == "equilibrium":
+                pass
             self._cache = Path._do_update(self._cache, [_name], value, _idempotent=True)
 
         return value
@@ -644,14 +644,14 @@ class Dict(HTree[_T]):
             self._cache = {}
 
     def items(self) -> typing.Generator[typing.Tuple[str, _T], None, None]:
-        yield from self.children()
+        yield from self.for_each()
 
     def keys(self) -> typing.Generator[str, None, None]:
-        for k, v in self.children():
+        for k, v in self.for_each():
             yield k
 
     def values(self) -> typing.Generator[_T, None, None]:
-        for k, v in self.children():
+        for k, v in self.for_each():
             yield v
 
 

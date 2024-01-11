@@ -105,8 +105,11 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def _update_(self, *args, **kwargs):
-        super()._update_(*args, **kwargs)
+    def _update_(self, key,value,*args, **kwargs):
+        old=self._find_(key,default_value=_not_found_)
+        if old is not value:
+            super()._update_(key,value, *args, **kwargs)
+        return self
 
     def _find_(self, key: str | int, *args, **kwargs) -> _TNode | QueryResult[_T]:
         """ """

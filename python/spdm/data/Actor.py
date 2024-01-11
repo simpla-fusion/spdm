@@ -149,7 +149,9 @@ class Actor(Pluggable):
         kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
 
         # 更新 inports，返回将不是 HTreeNode 的 input
-        self.inports._update_({k: n for k, n in kwargs.items() if isinstance(n, HTreeNode)})
+        for k, n in kwargs.items():
+            if isinstance(n, HTreeNode):
+                self.inports._update_(k, n )
 
         return current
 

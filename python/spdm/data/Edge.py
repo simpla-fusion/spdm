@@ -101,7 +101,7 @@ class Ports(Dict[Port]):
     """
 
     def get(self, key: str, *args, **kwargs) -> Port:
-        port: Port = super().find(key)
+        port: Port = super().find(key, *args, **kwargs)
         if (port.node is _not_found_ or port.node is None) and len(port.fragment) > 0:
             port0 = super().get(port.identifier, _not_found_)
             if isinstance(port0, Port):
@@ -134,7 +134,8 @@ class Ports(Dict[Port]):
 
             if isinstance(parent, SpTree):
                 for n in self.values():
-                    n.link(getattr(parent, n.identifier, _not_found_))
+                    node=getattr(parent, n.identifier, _not_found_)
+                    n.link(node)
 
             self.refresh(getattr(parent, attr_name, _not_found_))
 

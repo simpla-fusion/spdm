@@ -223,8 +223,6 @@ class SpProperty:
         if self.getter is not None:
             self.doc += self.getter.__doc__ or ""
 
-        if name == "v_external":
-            pass
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
@@ -253,7 +251,7 @@ class SpProperty:
             logger.error("Can not use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance._update_({self.property_name: value}, setter=self.setter)
+            instance._update_(self.property_name, value, setter=self.setter)
 
     def __get__(self, instance: SpTree, owner_cls=None) -> _T:
         if instance is None:

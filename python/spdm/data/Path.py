@@ -202,7 +202,7 @@ class Query:
 def as_query(query: QueryLike = None, **kwargs) -> Query | slice:
     if isinstance(query, slice):
         return query
-    elif isinstance(query, Query) and len(kwargs):
+    elif isinstance(query, Query) :
         return query
     else:
         return Query(query, **kwargs)
@@ -721,12 +721,12 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update_one(target, *args, _idempotent=True, **kwargs):
-        if len(args) > 0 and target is args[0]:
+    def _do_update_one(target, key, value, *args, _idempotent=True, **kwargs):
+        if key is None and target is value:
             pass
 
         elif hasattr(target.__class__, "_update_"):
-            target._update_(*args, _idempotent=_idempotent, **kwargs)
+            target._update_(key, value, *args, _idempotent=_idempotent, **kwargs)
 
         else:
             idempotent = _idempotent
@@ -742,7 +742,7 @@ class Path(list):
                 elif target is _not_found_:
                     target = value
 
-                elif isinstance(value, collections.abc.Mapping) and isinstance(target, collections.abc.Mapping):
+                elif isinstance(value, dict):
                     for k, v in value.items():
                         Path._do_update(target, as_path(k)[:], v, _idempotent=_idempotent)
 
@@ -754,7 +754,7 @@ class Path(list):
                         target.extend(value)
                     else:
                         target.append(value)
-                elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                elif extend and isinstance(value, list):
                     target = [target, *value]
 
                 else:
@@ -763,15 +763,16 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update(target: typing.Any, *args, **kwargs) -> typing.Any:
-        if len(args) <= 1:
-            path = []
-        else:
-            path = args[0]
-            args = args[1:]
+    def _do_update_(target: typing.Any, path: typing.List | None, value, *args, **kwargs) -> typing.Any:
+        if value is _not_found_:
+            if len(args) + len(kwargs) > 0:
+                logger.warning(f"{args} {kwargs} is ignored")
+            return target
 
-        if len(path) == 0:
-            return Path._do_update_one(target, *args, **kwargs)
+        if not isinstance(path, list):
+            path = [path]
+        elif len(path) == 0:
+            path = [None]
 
         if target is _not_found_ or target is None:
             if len(path) > 0 and isinstance(path[0], str):
@@ -780,7 +781,8 @@ class Path(list):
                 target = []
 
         obj = target
-        for idx, key in enumerate(path):
+
+        for idx, key in enumerate(path[:-1]):
             if key is None or key is Path.tags.current:
                 continue
 
@@ -794,12 +796,12 @@ class Path(list):
                 query = key
                 _only_first = kwargs.get("_only_first", True)
                 for v in Path._do_for_each(obj, query, _only_first=_only_first):
-                    Path._do_update(v, path[1:], *args, **kwargs)
+                    Path._do_update(v, path[idx + 1 :], value, *args, **kwargs)
 
             elif isinstance(key, str) and key.isidentifier() and hasattr(obj.__class__, key):
                 element = getattr(obj, key, _not_found_)
                 if not is_tree(element):
-                    setattr(obj, key, Path._do_update(element, path[1:], *args, **kwargs))
+                    setattr(obj, key, Path._do_update(element, path[idx + 1 :], value, *args, **kwargs))
                     break
                 else:
                     obj = element
@@ -807,7 +809,7 @@ class Path(list):
             elif isinstance(obj, collections.abc.MutableMapping) and isinstance(key, str):
                 element = obj.get(key, _not_found_)
                 if not is_tree(element) or element is _not_found_:
-                    value = Path._do_update(element, path[idx + 1 :], *args, **kwargs)
+                    value = Path._do_update(element, path[idx + 1 :], value, *args, **kwargs)
                     obj[key] = value
                     break
                 else:
@@ -820,7 +822,7 @@ class Path(list):
                 element = obj[key]
 
                 if not is_tree(element):
-                    obj[key] = Path._do_update(element, path[1:], *args, **kwargs)
+                    obj[key] = Path._do_update(element, path[idx + 1 :], value, *args, **kwargs)
                     break
                 else:
                     obj = element
@@ -829,55 +831,53 @@ class Path(list):
                 raise TypeError(f"Can not update {obj}  key='{key}'")
 
         else:
-            obj = Path._do_update_one(obj, *args, **kwargs)
+            key = path[-1]
+            if key is None and not isinstance(value, dict):
+                pass
+            obj = Path._do_update_one(obj, path[-1], value, *args, **kwargs)
 
         return target
 
     @staticmethod
-    def _do_update_deprecated(target: typing.Any, *args, _idempotent=True, **kwargs) -> typing.Any:
-        if len(args) <= 1:
-            path = None
-        else:
-            path = args[0]
-            args = args[1:]
+    def _do_update(target: typing.Any, path, value, _idempotent=True, **kwargs) -> typing.Any:
+        if isinstance(value, Path.tags):
+            obj = Path._do_find(target, path, default_value=_not_found_)
+            target = Path._apply_op(obj, value, **kwargs)
 
-        if path is None or len(path) == 0:
-            if len(args) > 0 and isinstance(args[0], Path.tags):
-                target = Path._apply_op(target, *args, **kwargs)
+        elif path is None or len(path) == 0:
+            idempotent = kwargs.get("_idempotent", True)
+            extend = not idempotent
 
+            if value is _not_found_:  # 空操作
+                pass
+
+            elif value is target:
+                pass
+
+            elif (value is None and idempotent) or target is _not_found_ or target is None:  # 删除或取代
+                target = value
+
+            elif isinstance(target, collections.abc.MutableMapping):
+                if isinstance(value, dict):
+                    for k, v in value.items():
+                        target = Path._do_update(target, as_path(k)[:], v, **kwargs)
+                else:
+                    target = value  # 取代
+
+            elif idempotent:
+                target = value
+
+            elif isinstance(target, collections.abc.MutableSequence):
+                if extend and isinstance(value, (list)):
+                    target.extend(value)
+                else:
+                    target.append(value)
+            elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                target = [target, *value]
             else:
-                idempotent = kwargs.get("_idempotent", True)
-                extend = not idempotent
+                target = [target, value]
 
-                for value in args:
-                    if value is _not_found_:  # 空操作
-                        continue
-
-                    elif value is target:
-                        continue
-
-                    elif (value is None and idempotent) or target is _not_found_ or target is None:  # 删除或取代
-                        target = value
-
-                    elif isinstance(target, collections.abc.MutableMapping):
-                        if isinstance(value, dict):
-                            for k, v in value.items():
-                                target = Path._do_update(target, as_path(k)[:], v, **kwargs)
-                        else:
-                            target = value  # 取代
-
-                    elif idempotent:
-                        target = value
-
-                    elif isinstance(target, collections.abc.MutableSequence):
-                        if extend and isinstance(value, (list)):
-                            target.extend(value)
-                        else:
-                            target.append(value)
-                    elif extend and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-                        target = [target, *value]
-                    else:
-                        target = [target, value]
+            # elif len(path)==1:
 
         else:
             key = path[0]
@@ -886,25 +886,27 @@ class Path(list):
                 target = {} if isinstance(key, str) else []
 
             if key is None:
-                target = Path._do_update(target, path[1:], *args, **kwargs)
+                target = Path._do_update(target, path[1:], value, **kwargs)
 
             elif isinstance(key, str) and key.isidentifier() and hasattr(target.__class__, key):
-                if len(path) == 1:
-                    value = Path._do_update(_not_found_, [], *args, **kwargs)
-                    setattr(target, key, value)
-
-                else:
+                if len(path) >1 or is_tree(value):                    
                     attr = getattr(target, key, _not_found_)
-                    value = Path._do_update(attr, path[1:], *args, **kwargs)
+                    value = Path._do_update(attr, path[1:], value, **kwargs)
 
                     if value is not attr:
                         setattr(target, key, value)
 
             elif hasattr(target.__class__, "_update_"):
-                target._update_(key, Path._do_update(target._find_(key, _not_found_), *args, **kwargs))
+                if len(path) > 1 or is_tree(value):
+                    obj=target._find_(key, default_value=_not_found_)
+                    value = Path._do_update(obj, path[1:], value, **kwargs)
+
+                target._update_(key, value)
 
             elif isinstance(target, collections.abc.MutableMapping):
-                target[key] = Path._do_update(target.get(key, _not_found_), path[1:], *args, **kwargs)
+                if len(path) > 1 or is_tree(value):
+                    value = Path._do_update(target.get(key, _not_found_), path[1:], value, **kwargs)
+                target[key] = value
 
             elif isinstance(target, collections.abc.MutableSequence):
                 if isinstance(key, int):
@@ -920,25 +922,30 @@ class Path(list):
                     target.extend([_not_found_] * (key - len(target) + 1))
 
                 if isinstance(key, int):
-                    target[key] = Path._do_update(target[key], path[1:], *args, **kwargs)
+                    if len(path) >1 or  is_tree(value):
+                        value = Path._do_update(target[key], path[1:], value, **kwargs)
 
-                elif isinstance(key, slice):
-                    target[key] = [Path._do_update(obj, path[1:], *args, **kwargs) for obj in target[key]]
+                # elif isinstance(key, slice):
+                #     target[key] = [Path._do_update(obj, path[1:], value, **kwargs) for obj in target[key]]
 
-                elif isinstance(key, Query):
-                    query = key
-                    only_first = kwargs.pop("only_first", False)
+                elif isinstance(key, (Query,str)):
+                    query = as_query(key)
+    
                     for idx, d in enumerate(target):
                         if query.check(d):
-                            target[idx] = Path._do_update(d, path[1:], *args, **kwargs)
-                            if only_first:
+                            key=idx
+                            if len(path) >1 or is_tree(value):                                
+                                value = Path._do_update(d, path[1:], value, **kwargs)                            
                                 break
+                    else:
+                        key=_undefined_
 
                 else:
                     raise TypeError(f"illegal key '{key}' for {type(target)}")
-
+                if key is not _undefined_:
+                    target[key] = value
             else:
-                raise TypeError(f"Can not update {type(target)} '{target}' path={path} {args} {kwargs}")
+                raise TypeError(f"Can not update {type(target)} '{target}' path={path} {value} {kwargs}")
 
         return target
 
@@ -1413,7 +1420,9 @@ _T = typing.TypeVar("_T")
 
 
 def update_tree(target: _T, *args, **kwargs) -> _T:
-    return Path._do_update(target, [], *args, **kwargs)
+    for d in [*args,kwargs]:
+        target= Path._do_update(target, None, d)
+    return target
 
 
 def merge_tree(*args, **kwargs) -> _T:
