@@ -523,7 +523,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
         cls = getattr(self, "__orig_class__", self.__class__)
 
-        tp = typing.get_type_hints(cls).get(key, None) if isinstance(key, str) else None
+        tp = typing.get_type_hints(get_origin(cls)).get(key, None) if isinstance(key, str) else None
 
         if tp is None:
             tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)

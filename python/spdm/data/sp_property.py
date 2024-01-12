@@ -96,7 +96,7 @@ class PropertyTree(SpTree):
         if key.startswith("_"):
             return super().__getattribute__(key)
         else:
-            res = self.find(key, *args, **kwargs)
+            res = self.find_cache(key, *args, **kwargs)
             if isinstance(res, dict):
                 return PropertyTree(res, _parent=self)
             elif isinstance(res, list) and (len(res) == 0 or isinstance(res[0], (dict, HTree))):
