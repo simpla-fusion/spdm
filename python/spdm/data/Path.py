@@ -786,9 +786,7 @@ class Path(list):
         obj = root
 
         for idx, key in enumerate(path[:-1]):
-            if isinstance(obj, collections.abc.MutableSequence) and isinstance(key, str):
-                key = Query(key)
-
+             
             if obj is _not_found_:
                 raise KeyError(f"Can not find {path[:idx]}")
 
@@ -869,11 +867,32 @@ class Path(list):
                         obj[key] = new_value
                     break
 
+            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, str):
+                query = Query(key)
+                for jdx, old_value in enumerate(obj):
+                    if query.check(old_value):
+                        new_value = Path._do_update(old_value, path[idx + 1 :], value, *args, **kwargs)
+                        if new_value is not old_value:
+                            obj[jdx] = new_value
+                        break
+                else:
+                    new_value = Path._do_update({f"@{Path.id_tag_name}": key}, path[idx + 1 :], value, *args, **kwargs)
+                    obj.append(new_value)
+                break
+            
             elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, Query):
                 query = key
                 _only_first = kwargs.get("_only_first", True)
-                for v in Path._do_for_each(obj, query, _only_first=_only_first):
-                    Path._do_update(v, path[idx + 1 :], value, *args, **kwargs)
+                for idx, old_value in enumerate(obj):
+                    if query.check(old_value):
+                        new_value = Path._do_update(old_value, path[idx + 1 :], value, *args, **kwargs)
+                        if new_value is not old_value:
+                            obj[idx] = new_value
+
+                        if _only_first:
+                            break
+                else:
+                    raise KeyError(f"Can not update {obj} at {key}!")
                 break
 
             else:
@@ -956,9 +975,11 @@ class Path(list):
 
             elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, Query):
                 for idx, old_value in enumerate(obj):
-                    new_value = Path._do_change(old_value, value, *args, **kwargs)
-                    if new_value is not old_value:
-                        obj[idx] = new_value
+                    if key.check(old_value):
+                        new_value = Path._do_change(old_value, value, *args, **kwargs)
+                        if new_value is not old_value:
+                            obj[idx] = new_value
+                        break
             else:
                 raise KeyError(f"Can not find {key} in {obj}!")
 
@@ -1479,10 +1500,7 @@ class Path(list):
         if not isinstance(source, collections.abc.Sequence):
             raise TypeError(f"{type(source)} is not sequence")
 
-        if len(args) == 1 and isinstance(args[0], str):
-            query = Query({f"@{Path.id_tag_name}": args[0], **kwargs})
-        else:
-            query = Query(*args, **kwargs)
+        query = Query(*args, **kwargs)
 
         if search_range is not None and isinstance(source, collections.abc.Sequence):
             source = source[search_range]
