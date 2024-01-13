@@ -308,6 +308,10 @@ def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
     return tuple([t for t in res if t is not None and not isinstance(t, typing.TypeVar)])
 
 
+def get_type(obj):
+    return getattr(obj, "__orig_class__", obj.__class__)
+
+
 def get_type_hint(tp: typing.Type | types.GenericAlias, prop_name: str):
     if not isinstance(tp, (typing.Type, types.GenericAlias)):
         tp = getattr(tp, "__orig_class__", tp.__class__)

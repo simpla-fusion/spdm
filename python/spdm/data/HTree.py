@@ -22,6 +22,7 @@ from ..utils.typing import (
     isinstance_generic,
     numeric_type,
     serialize,
+    get_type,
     type_convert,
 )
 
@@ -163,7 +164,9 @@ class HTreeNode:
         if _parent is _not_found_:
             _parent = self._parent
 
-        return self.__class__(
+        cls = get_type(self)
+
+        return cls(
             *args,
             _parent=_parent,
             _entry=self._entry,
@@ -232,11 +235,7 @@ class HTreeNode:
             return obj
 
     def fetch(self, *args, **kwargs) -> Self:
-        return self.__class__(
-            HTreeNode._do_fetch(self._cache, *args, **kwargs),
-            _entry=self._entry,
-            **deepcopy(self._metadata),
-        )
+        return self.__duplicate__(HTreeNode._do_fetch(self._cache, *args, **kwargs))
 
     def flush(self):
         """TODO: 将 cache 内容 push 入 entry"""
@@ -494,14 +493,17 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
         if isinstance(key, str) and key.startswith("@"):
             return None
-        else:
+
+        tp = None
+
+        if isinstance(key, str):
             cls = getattr(self, "__orig_class__", self.__class__)
 
-            tp = typing.get_type_hints(get_origin(cls)).get(key, None) if isinstance(key, str) else None
+            tp = typing.get_type_hints(get_origin(cls)).get(key, None)
 
-            if tp is None:
-                tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
-                tp = tp[-1] if len(tp) > 0 else None
+        if tp is None:
+            tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
+            tp = tp[-1] if len(tp) > 0 else None
 
         return tp
 

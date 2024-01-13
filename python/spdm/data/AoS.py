@@ -119,7 +119,7 @@ class AoS(List[_TTree]):
 
         value[f"@{Path.id_tag_name}"] = key
 
-        self._cache.append(value)
+        # self._cache.append(value)
 
         return value
 

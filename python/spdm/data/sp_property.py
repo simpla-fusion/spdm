@@ -81,11 +81,12 @@ class SpTree(Dict[HTreeNode]):
         cache = {}
 
         for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
-            if (
-                attr.getter is None
-                and attr.alias is None
-                and (value := getattr(self, k, _not_found_)) is not _not_found_
-            ):
+            if attr.getter is None and attr.alias is None:
+                value = getattr(self, k, _not_found_)
+                if value is _not_found_:
+                    continue
+                if k=="ion":
+                    pass
                 cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
 
         return self.__duplicate__(cache, _parent=None)
