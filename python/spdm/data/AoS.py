@@ -146,9 +146,9 @@ class AoS(List[_TNode]):
         for idx, v in enumerate(self._cache):
             key = Path(tag).get(v, _not_found_)
             if key is _not_found_:
-                yield self._find_(idx, *args, **kwargs)
+                yield idx, self._find_(idx, *args, **kwargs)
             else:
-                yield self._find_(key, *args, **kwargs)
+                yield key, self._find_(key, *args, **kwargs)
 
             # if self._entry is None:
             #     _entry = None

@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Generator
 from typing_extensions import Self
 import collections.abc
+import abc
 import pathlib
 import typing
 import types
@@ -318,15 +319,15 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     #############################################
     # 当子节点操作，不支持路径
-    @typing.final
-    def children(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+    @abc.abstractclassmethod
+    def children(self) -> typing.Generator[_T, None, None]:
         """alias of for_each"""
-        yield from self._for_each_(*args, **kwargs)
+        return
 
-    @typing.final
+    @abc.abstractclassmethod
     def __iter__(self) -> typing.Generator[_T | str, None, None]:
         """遍历 children"""
-        yield from self._for_each_()
+        return
 
     @typing.final
     def __len__(self) -> int:
@@ -362,16 +363,20 @@ class HTree(HTreeNode, typing.Generic[_T]):
         return self._find_(*args, **kwargs)
 
     @typing.final
-    def find_cache(self, path, default_value=_not_found_, **kwargs):
-        res = Path._do_find(self._cache, path, default_value=_not_found_, **kwargs)
+    def find_cache(self, path, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        res = Path._do_find(self._cache, path, *args, default_value=_not_found_, **kwargs)
         if res is _not_found_ and self._entry is not None:
-            res = self._entry.find(path, default_value=_not_found_, **kwargs)
+            res = self._entry.child(path).find(*args, default_value=_not_found_, **kwargs)
         if res is _not_found_:
             res = default_value
         return res
 
     @typing.final
-    def for_each(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+    def get_cache(self, path, default_value=_not_found_) -> typing.Any:
+        return self.find_cache(path, default_value=default_value)
+
+    @typing.final
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, _T], None, None]:
         yield from self._for_each_(*args, **kwargs)
 
     # -----------------------------------------------------------------------------
@@ -450,7 +455,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
         return value
 
-    def _for_each_(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+    def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, _T], None, None]:
         if (self._cache is _not_found_ or len(self._cache) == 0) and self._entry is not None:
             for k, v in self._entry.for_each(*args, **kwargs):
                 if not isinstance(v, Entry):
@@ -459,7 +464,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
                     yield k, self._type_convert(_not_found_, k, _entry=v)
 
         elif self._cache is not None:
-            for k, v in Path().for_each(self._cache, *args, **kwargs):
+            for k, v in Path._do_for_each(self._cache, [], *args, **kwargs):
                 _entry = self._entry.child(k) if self._entry is not None else None
                 v = self._type_convert(v, k, _entry=_entry)
                 yield k, v
@@ -594,6 +599,13 @@ class Dict(HTree[_T]):
         if self._cache is _not_found_:
             self._cache = {}
 
+    def children(self) -> typing.Generator[_T, None, None]:
+        yield from self.values()
+
+    def __iter__(self) -> typing.Generator[str, None, None]:
+        """遍历 children"""
+        yield from self.keys()
+
     def items(self) -> typing.Generator[typing.Tuple[str, _T], None, None]:
         yield from self.for_each()
 
@@ -614,6 +626,14 @@ class List(HTree[_T]):
         super().__init__(*args, **kwargs)
         if self._cache is _not_found_:
             self._cache = []
+
+    def children(self) -> typing.Generator[_T, None, None]:
+        for k, v in self.for_each():
+            yield v
+
+    def __iter__(self) -> typing.Generator[_T, None, None]:
+        for k, v in self.for_each():
+            yield v
 
     def append(self, other):
         self._update_(other, _idempotent=False, _extend=False)
