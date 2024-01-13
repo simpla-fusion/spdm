@@ -24,7 +24,7 @@ class TimeSlice(SpTree):
         return self._iteration
 
     def refresh(self, *args, **kwargs):
-        current = self._update_(*args, **kwargs)
+        current = self._update_(None, *args, **kwargs)
         current._iteration += 1
         return current
 

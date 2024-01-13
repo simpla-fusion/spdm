@@ -391,7 +391,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value is not _not_found_:
                 return value
 
-        if key is None and len(args) > 0 and args[0] is self:
+        if (key is None or key == []) and len(args) > 0 and args[0] is self:
             pass
 
         elif callable(_setter):

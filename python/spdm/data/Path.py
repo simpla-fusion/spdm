@@ -100,14 +100,14 @@ class Query:
         elif isinstance(query, str) and query.startswith("$"):
             query = {".": query}
 
-        elif isinstance(query, str) and query.isidentifier():
+        elif isinstance(query, str):
             query = {f"@{Path.id_tag_name}": query}
 
         elif isinstance(query, dict):
             query = {k: Query._parser(v) for k, v in query.items()}
 
-        # else:
-        #     raise TypeError(f"{(query)}")
+        else:
+            raise TypeError(f"{(query)}")
 
         if isinstance(query, dict):
             return update_tree(query, kwargs)
@@ -721,7 +721,13 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update(target: typing.Any, path: typing.List | None, value, _idempotent=True, **kwargs) -> typing.Any:
+    def _do_update(
+        target: typing.Any, path: typing.List | None, value=_undefined_, _idempotent=True, **kwargs
+    ) -> typing.Any:
+        
+        if value is _undefined_:
+            return target
+        
         if not isinstance(path, list):
             path = [path]
 
@@ -851,8 +857,6 @@ class Path(list):
                     else:
                         obj = new_value
 
-                
-
                 elif isinstance(obj, collections.abc.MutableMapping):
                     old_value = obj.get(key, _not_found_)
 
@@ -875,7 +879,6 @@ class Path(list):
                     break
 
                 elif isinstance(obj, collections.abc.MutableSequence):
-                    
                     if isinstance(key, int):
                         if key >= (len(obj)):
                             obj.extend([_not_found_] * (key - len(obj) + 1))

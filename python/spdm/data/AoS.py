@@ -132,23 +132,16 @@ class AoS(List[_TTree]):
         return super()._find_(key, *args, default_value=default_value, **kwargs)
 
     def _update_(self, key, value, *args, **kwargs) -> Self:
-        if key is not None:
-            old_value = super()._find_(key, default_value=_not_found_)
-            new_value = Path._do_change(old_value, value, *args, **kwargs)
+        pth = Path(f"@{Path.id_tag_name}")
 
-            if new_value is not old_value:
-                super()._update_(key, new_value, *args, **kwargs)
-        elif isinstance(value, list):
-            pth = Path(f"@{Path.id_tag_name}")
+        if key is None:
+            key = pth.get(value, None)
+
+        if isinstance(value, list):
             for v in value:
-                id_tag = pth.get(v, _not_found_)
-                if id_tag is _not_found_:
-                    self._cache.append(v)
-                else:
-                    super()._update_(id_tag, v, *args, **kwargs)
-        
+                super()._update_(None, v, *args, **kwargs)
         else:
-            raise TypeError(f"Invalid type of value: {type(value)}")
+            super()._update_(key, value, *args, **kwargs)
 
         return self
 
