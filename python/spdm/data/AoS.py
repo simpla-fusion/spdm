@@ -123,7 +123,7 @@ class AoS(List[_TNode]):
 
     def _update_(self, key, value, *args, **kwargs):
         if key is not None:
-            old_value = self._find_(key, default_value=_not_found_)
+            old_value = super()._find_(key, default_value=_not_found_)
             new_value = Path._do_change(old_value, value, *args, **kwargs)
 
             if new_value is not old_value:
@@ -135,7 +135,7 @@ class AoS(List[_TNode]):
                 if id_tag is _not_found_:
                     self._cache.append(v)
                 else:
-                    self._update_(id_tag, v, *args, **kwargs)
+                    super()._update_(id_tag, v, *args, **kwargs)
         else:
             raise TypeError(f"Invalid type of value: {type(value)}")
 

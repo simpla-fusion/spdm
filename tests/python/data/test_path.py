@@ -93,6 +93,7 @@ class TestPath(unittest.TestCase):
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
 
         self.assertEqual(cache["d"]["f"], 6)
+        
         self.assertEqual(cache["d"]["g"], 5)
 
     def test_delete(self):
