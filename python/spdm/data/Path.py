@@ -721,183 +721,204 @@ class Path(list):
         return target
 
     @staticmethod
-    def _do_update(target: typing.Any, path: typing.List | None, *args, **kwargs) -> typing.Any:
+    def _do_update(target: typing.Any, path: typing.List | None, value, _idempotent=True, **kwargs) -> typing.Any:
         if path is None or path is _not_found_:
             path = []
-
         elif not isinstance(path, list):
             path = [path]
 
-        if target is _not_found_ and len(path) > 0:
-            if isinstance(path[0], str):
-                target = {}
-            else:
-                target = []
+        if len(path) == 0:
+            extend = not _idempotent
 
-        obj = target
+            if hasattr(target.__class__, "_update_"):
+                target._update_(None, value, **kwargs)
 
-        for idx, key in enumerate(path):
-            next_obj = _not_found_
+            elif target is value:
+                pass
 
-            if not is_tree(obj):
-                raise TypeError(f" {obj} is not a Tree! key= {key}")
+            elif target is _not_found_:
+                target = value
 
-            elif key is Path.tags.current or key is None:
-                next_obj = obj
+            elif isinstance(target, collections.abc.MutableMapping) and isinstance(value, dict):
+                for k, v in value.items():
+                    target = Path._do_update(target, as_path(k)[:], v, _idempotent=_idempotent)
 
-            elif key is Path.tags.parent:
-                next_obj = getattr(obj, "_parent", _not_found_)
+            elif _idempotent:
+                target = value
 
-            elif key is Path.tags.children:
-                if hasattr(obj.__class__, "for_each"):
-                    for k, v in enumerate(obj.for_each()):
-                        old_value = v
-                        new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                        if new_value is not old_value:
-                            obj[k] = new_value
-                if isinstance(obj, collections.abc.MutableMapping):
-                    for k, v in obj.items():
-                        old_value = v
-                        new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                        if new_value is not old_value:
-                            obj[k] = new_value
-                elif isinstance(obj, collections.abc.MutableSequence):
-                    for k, v in enumerate(obj):
-                        old_value = v
-                        new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                        if new_value is not old_value:
-                            obj[k] = new_value
-
+            elif isinstance(target, collections.abc.MutableSequence) and not isinstance(target, str):
+                if extend and isinstance(value, (list)):
+                    target.extend(value)
                 else:
-                    raise KeyError(f"{type(obj)} has not children!")
-                next_obj = _not_found_
-            elif isinstance(key, str) and key.isidentifier() and hasattr(obj.__class__, key):
-                old_value = getattr(obj, key, _not_found_)
-                if is_tree(old_value):
-                    next_obj = old_value
-                else:
-                    new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                    if new_value is not old_value:
-                        setattr(obj, key, new_value)
-                    next_obj = _not_found_
+                    target.append(value)
 
-            elif hasattr(obj.__class__, "_update_"):
-                old_value = obj._find_(key, default_value=_not_found_)
-                if not is_tree(old_value):
-                    new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                    if new_value is not old_value:
-                        obj._update_(key, new_value)
-                    next_obj = _not_found_
-                else:
-                    next_obj = old_value
-
-            elif isinstance(obj, collections.abc.MutableMapping):
-                old_value = obj.get(key, _not_found_)
-                if is_tree(old_value):
-                    next_obj = old_value
-                else:
-                    new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                    if new_value is not old_value:
-                        obj[key] = new_value
-                    next_obj = _not_found_
-
-            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, int):
-                if key >= (len(obj)):
-                    obj.extend([_not_found_] * (key - len(obj) + 1))
-
-                old_value = obj[key]
-
-                if is_tree(old_value):
-                    next_obj = old_value
-                else:
-                    new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                    if new_value is not old_value:
-                        obj[key] = new_value
-                    next_obj = _not_found_
-
-            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, (Path.tags, slice)):
-                for v in obj[key]:
-                    Path._do_update(v, path[idx + 1 :], *args, **kwargs)
-                next_obj = _not_found_
-
-            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, str):
-                query = Query(key)
-                for jdx, old_value in enumerate(obj):
-                    if query.check(old_value):
-                        new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                        if new_value is not old_value:
-                            obj[jdx] = new_value
-
-                else:
-                    new_value = Path._do_update({f"@{Path.id_tag_name}": key}, path[idx + 1 :], *args, **kwargs)
-                    obj.append(new_value)
-                next_obj = _not_found_
-
-            elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, Query):
-                query = key
-                _only_first = kwargs.get("_only_first", True)
-                for idx, old_value in enumerate(obj):
-                    if query.check(old_value):
-                        new_value = Path._do_update(old_value, path[idx + 1 :], *args, **kwargs)
-                        if new_value is not old_value:
-                            obj[idx] = new_value
-
-                        if _only_first:
-                            break
-                else:
-                    raise KeyError(f"Can not update {obj} at {key}!")
-                next_obj = _not_found_
+            elif extend and isinstance(value, list):
+                target = [target, *value]
 
             else:
-                raise KeyError(f"Can not find {key} in {obj}!")
+                target = [target, value]
 
-            if next_obj is _not_found_:
-                break
-
-            obj = next_obj
+            if len(kwargs) > 0:
+                Path._do_update(target, [], kwargs, _idempotent=_idempotent)
 
         else:
-            idempotent = kwargs.pop("_idempotent", True)
-            extend = not idempotent
+            if target is _not_found_:
+                if isinstance(path[0], str):
+                    target = {}
+                else:
+                    target = []
 
-            if len(args) > 0 and obj is args[0]:
-                args = args[1:]
+            obj = target
 
-            if hasattr(obj.__class__, "_update_"):
-                obj._update_(None, *args, **kwargs)
+            path_length = len(path)
 
-            else:
-                if len(kwargs) > 0:
-                    args = [*args, kwargs]
+            idx = 0
 
-                for value in args:
-                    if obj is value:
-                        pass
+            while idx < path_length:
+                key = path[idx]
 
-                    elif obj is _not_found_:
-                        obj = value
+                if not is_tree(obj):
+                    raise TypeError(f" {obj} is not a Tree! key= {key}")
 
-                    elif isinstance(obj, collections.abc.MutableMapping) and isinstance(value, dict):
-                        for k, v in value.items():
-                            obj = Path._do_update(obj, as_path(k)[:], v, _idempotent=idempotent)
+                elif key is Path.tags.current or key is None:
+                    pass
 
-                    elif idempotent:
-                        obj = value
+                elif key is Path.tags.parent:
+                    obj = getattr(obj, "_parent", _not_found_)
 
-                    elif isinstance(obj, collections.abc.MutableSequence) and not isinstance(obj, str):
-                        if extend and isinstance(value, (list)):
-                            obj.extend(value)
-                        else:
-                            obj.append(value)
+                elif key is Path.tags.children:
+                    if hasattr(obj.__class__, "for_each"):
+                        for k, v in enumerate(obj.for_each()):
+                            old_value = v
+                            new_value = Path._do_update(old_value, path[idx + 1 :], _idempotent=_idempotent, **kwargs)
+                            if new_value is not old_value:
+                                obj[k] = new_value
 
-                    elif extend and isinstance(value, list):
-                        obj = [obj, *value]
+                    elif isinstance(obj, collections.abc.MutableMapping):
+                        for k, v in obj.items():
+                            old_value = v
+                            new_value = Path._do_update(old_value, path[idx + 1 :], _idempotent=_idempotent, **kwargs)
+                            if new_value is not old_value:
+                                obj[k] = new_value
+
+                    elif isinstance(obj, collections.abc.MutableSequence):
+                        for k, v in enumerate(obj):
+                            old_value = v
+                            new_value = Path._do_update(old_value, path[idx + 1 :], _idempotent=_idempotent, **kwargs)
+                            if new_value is not old_value:
+                                obj[k] = new_value
 
                     else:
-                        obj = [obj, value]
+                        raise KeyError(f"{type(obj)} has not children!")
 
-            if len(path) == 0:
-                target = obj
+                    break
+
+                elif isinstance(key, Path.tags):
+                    raise NotImplementedError(key)
+
+                elif isinstance(key, str) and key.isidentifier() and hasattr(obj.__class__, key):
+                    old_value = getattr(obj, key, _not_found_)
+
+                    if is_tree(old_value) and idx < path_length - 1:
+                        obj = old_value
+
+                    else:
+                        if idx == path_length - 1:
+                            new_value = Path._do_update(old_value, [], value,_idempotent=_idempotent, **kwargs)
+                        else:
+                            new_value = Path._do_update(old_value, path[idx + 1], _not_found_,_idempotent=_idempotent)
+                            idx -= 1
+
+                        if old_value is not new_value:
+                            setattr(obj, key, new_value)
+
+                elif hasattr(obj.__class__, "_update_"):
+                    old_value = obj._find_(key, default_value=_not_found_)
+
+                    if is_tree(old_value) and idx < path_length - 1:
+                        obj = old_value
+
+                    else:
+                        if idx == path_length - 1:
+                            new_value = Path._do_update(old_value, [], value,_idempotent=_idempotent, **kwargs)
+                        else:
+                            new_value = Path._do_update(old_value, path[idx + 1], _not_found_,_idempotent=_idempotent)
+                            idx -= 1
+
+                        if old_value is not new_value:
+                            obj._update_(obj, key, new_value)
+
+                elif isinstance(obj, collections.abc.MutableMapping):
+                    old_value = obj.get(key, _not_found_)
+
+                    if is_tree(old_value) and idx < path_length - 1:
+                        obj = old_value
+
+                    else:
+                        if idx == path_length - 1:
+                            new_value = Path._do_update(old_value, [], value,_idempotent=_idempotent, **kwargs)
+                        else:
+                            new_value = Path._do_update(old_value, path[idx + 1], _not_found_,_idempotent=_idempotent)
+                            idx -= 1
+
+                        if old_value is not new_value:
+                            obj[key] = new_value
+
+                elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, int):
+                    if key >= (len(obj)):
+                        obj.extend([_not_found_] * (key - len(obj) + 1))
+
+                    old_value = obj[key]
+
+                    if is_tree(old_value) and idx < path_length - 1:
+                        obj = old_value
+
+                    else:
+                        if idx == path_length - 1:
+                            new_value = Path._do_update(old_value, [], value,_idempotent=_idempotent, **kwargs)
+                        else:
+                            new_value = Path._do_update(old_value, path[idx + 1], _not_found_,_idempotent=_idempotent)
+                            idx -= 1
+
+                        if old_value is not new_value:
+                            obj[key] = new_value
+
+                elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, (Path.tags, slice)):
+                    for v in obj[key]:
+                        Path._do_update(v, path[idx + 1 :], value, **kwargs)
+                    break
+
+                elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, str):
+                    query = Query(key)
+                    for jdx, old_value in enumerate(obj):
+                        if query.check(old_value):
+                            new_value = Path._do_update(old_value, path[idx + 1 :], value,_idempotent=_idempotent, **kwargs)
+                            if new_value is not old_value:
+                                obj[jdx] = new_value
+
+                    else:
+                        new_value = Path._do_update({f"@{Path.id_tag_name}": key}, path[idx + 1 :], value,_idempotent=_idempotent, **kwargs)
+                        obj.append(new_value)
+                        break
+
+                elif isinstance(obj, collections.abc.MutableSequence) and isinstance(key, Query):
+                    query = key
+                    _only_first = kwargs.get("_only_first", True)
+                    for idx, old_value in enumerate(obj):
+                        if query.check(old_value):
+                            new_value = Path._do_update(old_value, path[idx + 1 :], value,_idempotent=_idempotent, **kwargs)
+                            if new_value is not old_value:
+                                obj[idx] = new_value
+
+                            if _only_first:
+                                break
+                    else:
+                        raise KeyError(f"Can not update {obj} at {key}!")
+                    break
+                else:
+                    raise KeyError(f"Can not find {key} in {obj}!")
+
+                idx += 1
 
         return target
 
