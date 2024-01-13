@@ -200,15 +200,6 @@ class HTreeNode:
     def __array__(self) -> ArrayType:  # for numpy
         return as_array(self.__value__)
 
-    def __equal__(self, other) -> bool:
-        if isinstance(other, _not_found_):
-            return self.__null__()
-        else:
-            raise NotImplementedError(f"equal operator")
-
-    def __update__(self, *args, **kwargs):
-        return self.update(*args, **kwargs)
-
     def __null__(self) -> bool:
         """判断节点是否为空，若节点为空，返回 True，否则返回 False
         @NOTE 长度为零的 list 或 dict 不是空节点
@@ -221,27 +212,11 @@ class HTreeNode:
     def __bool__(self) -> bool:
         return self.__null__() or self.__empty__() or bool(self.__value__)
 
-    def __getitem__(self, path) -> HTree:
-        return self.get(path)
-
-    def __setitem__(self, path, value) -> None:
-        self.put(path, value)
-
-    def __delitem__(self, path) -> None:
-        return self.remove(path)
-
-    def __contains__(self, key) -> bool:
-        return bool(self.find(key, Path.tags.exists) is True)
-
-    def __len__(self) -> int:
-        if self.__empty__():
-            return 0
+    def __equal__(self, other) -> bool:
+        if isinstance(other, HTreeNode):
+            return other.__equal__(self._cache)
         else:
-            return int(self.find(None, Path.tags.count) or 0)
-
-    def __iter__(self) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
-        """遍历 children"""
-        yield from self.children()
+            return self._cache == other
 
     @staticmethod
     def _do_fetch(obj, *args, **kwargs):
@@ -263,43 +238,6 @@ class HTreeNode:
             _entry=self._entry,
             **deepcopy(self._metadata),
         )
-
-    # 对元素操作
-    def put(self, path, value):
-        return self.update(path, value, _idempotent=True)
-
-    def get(self, path: PathLike, default_value=_undefined_) -> typing.Any:
-        res = self.find(path, default_value=default_value)
-        return self.__missing__(path) if res is _undefined_ else res
-
-    def insert(self, *args, **kwargs):
-        return self.update(*args, **kwargs)
-
-    def update(self, *args, **kwargs):
-        if len(args) + len(kwargs) == 0:
-            return self
-        else:
-            self.__class__ = HTree
-            _parent = self._parent
-            self.__init__(*args, **collections.ChainMap(self._metadata, kwargs))
-            if self._parent is None:
-                self._parent = _parent
-            return self
-
-    def remove(self, *args, **kwargs):
-        return self
-
-    def find(self, *args, **kwargs):
-        return self
-
-    def find_cache(self, pth, default_value=_not_found_):
-        return default_value
-
-    def children(self) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
-        return
-
-    def for_each(self, *args, **kwargs):
-        return
 
     def flush(self):
         """TODO: 将 cache 内容 push 入 entry"""
@@ -395,6 +333,10 @@ class HTree(HTreeNode, typing.Generic[_T]):
         return int(self._find_(None, Path.tags.count) or 0)
 
     @typing.final
+    def __contains__(self, key) -> bool:
+        return bool(self.find(key, Path.tags.exists) is True)
+
+    @typing.final
     def __equal__(self, other) -> bool:
         return bool(self._find_(None, Path.tags.equal, other))
 
@@ -418,6 +360,15 @@ class HTree(HTreeNode, typing.Generic[_T]):
     @typing.final
     def find(self, *args, **kwargs) -> _T:
         return self._find_(*args, **kwargs)
+
+    @typing.final
+    def find_cache(self, path, default_value=_not_found_, **kwargs):
+        res = Path._do_find(self._cache, path, default_value=_not_found_, **kwargs)
+        if res is _not_found_ and self._entry is not None:
+            res = self._entry.find(path, default_value=_not_found_, **kwargs)
+        if res is _not_found_:
+            res = default_value
+        return res
 
     @typing.final
     def for_each(self, *args, **kwargs) -> typing.Generator[_T, None, None]:

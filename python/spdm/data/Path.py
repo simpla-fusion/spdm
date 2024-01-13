@@ -1239,7 +1239,8 @@ class Path(list):
             else:
                 obj = _not_found_
         else:
-            obj = Path._apply_op(obj, *args, **kwargs)
+            if len(args)>0:
+                obj = Path._apply_op(obj, *args, **kwargs)
 
         if obj is _not_found_:
             obj = default_value
