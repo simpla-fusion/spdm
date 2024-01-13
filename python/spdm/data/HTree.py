@@ -58,11 +58,9 @@ class HTreeNode:
             else:
                 _entry = t_entry + _entry
 
-            for k in list(_cache.keys()):
-                if k.startswith("@"):
-                    metadata[k[1:]] = _cache.pop(k)
-        else:
-            metadata = {}
+            # for k in list(_cache.keys()):
+            #     if k.startswith("@"):
+            #         metadata[k[1:]] = _cache.pop(k)
 
         metadata.update(kwargs)
 
@@ -382,14 +380,19 @@ class HTree(HTreeNode, typing.Generic[_T]):
     # -----------------------------------------------------------------------------
     # 内部接口
     def __missing__(self, key) -> typing.Any:
-        raise KeyError(f"{self.__class__.__name__} can not find '{key}'! ")
+        raise KeyError(f"{self.__class__.__name__}.{key} is not assigned! ")
 
     def _insert_(self, *args, **kwargs):
         return self._update_(*args, _idempotent=False, **kwargs)
 
     def _update_(self, key, *args, _setter=None, **kwargs):
+        if isinstance(key, str) and key.startswith("@"):
+            value = Path._do_update(self._metadata, key[1:], *args, **kwargs)
+            if value is not _not_found_:
+                return value
+
         if key is None and len(args) > 0 and args[0] is self:
-            raise NotImplementedError("To avoid self-update")
+            pass
 
         elif callable(_setter):
             _setter(self, key, *args, **kwargs)
@@ -409,7 +412,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
         else:
             return self._update_(key, None, *args, **kwargs)
 
-    def _find_(self, key, *args, _getter=None, default_value=_not_found_, **kwargs) -> _T:
+    def _find_(self, key, *args, _getter=None, default_value=_undefined_, **kwargs) -> _T:
         """获取子节点/或属性
         搜索子节点的优先级  cache > getter > entry > default_value
         当 default_value 为 _undefined_ 时，若 cache 中找不到节点，则从 entry 中获得
@@ -417,23 +420,24 @@ class HTree(HTreeNode, typing.Generic[_T]):
         """
 
         if isinstance(key, str) and key.startswith("@"):
-            return Path._do_find(self._metadata, [key[1:]], *args, default_value=default_value, **kwargs)
+            value = Path._do_find(self._metadata, key[1:], *args, default_value=_not_found_)
+            if value is not _not_found_:
+                return value
 
-        elif len(args) > 0:
+        if len(args) > 0:
             value = Path._do_find(self._cache, key, *args, default_value=_not_found_, **kwargs)
             if value is _not_found_:
                 if self._entry is not None:
                     value = self._entry.child([key]).find(*args, default_value=default_value, **kwargs)
                 else:
                     value = default_value
-            return value
 
         else:
             value = Path._do_find(self._cache, key, default_value=_not_found_)
 
-            if isinstance(default_value, dict):
-                value = update_tree(deepcopy(default_value), value)
-                default_value = _not_found_
+            # if isinstance(default_value, dict):
+            #     value = update_tree(deepcopy(default_value), value)
+            #     default_value = _not_found_
 
             _entry = self._entry.child(key) if self._entry is not None else None
 
@@ -454,8 +458,15 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value is _undefined_:
                 value = self.__missing__(key)
 
-            elif value is not _not_found_ or _entry is not None:
+            if value is not _not_found_ or _entry is not None:
                 value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
+
+                if key is None and isinstance(self._cache, collections.abc.MutableSequence):
+                    self._cache.append(value)
+                elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableSequence):
+                    self._cache = Path._do_update(self._cache, key, value)
+                else:
+                    self._cache[key] = value
 
         return value
 
@@ -481,13 +492,16 @@ class HTree(HTreeNode, typing.Generic[_T]):
         当 key 为字符串时，获得属性 property 的 type_hint
         """
 
-        cls = getattr(self, "__orig_class__", self.__class__)
+        if isinstance(key, str) and key.startswith("@"):
+            return None
+        else:
+            cls = getattr(self, "__orig_class__", self.__class__)
 
-        tp = typing.get_type_hints(get_origin(cls)).get(key, None) if isinstance(key, str) else None
+            tp = typing.get_type_hints(get_origin(cls)).get(key, None) if isinstance(key, str) else None
 
-        if tp is None:
-            tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
-            tp = tp[-1] if len(tp) > 0 else None
+            if tp is None:
+                tp = get_args(getattr(self, "__orig_class__", None) or self.__class__)
+                tp = tp[-1] if len(tp) > 0 else None
 
         return tp
 
@@ -504,6 +518,9 @@ class HTree(HTreeNode, typing.Generic[_T]):
         if _type_hint is None:
             _type_hint = self._type_hint_(_name)
 
+        if _type_hint is None:
+            return value
+
         if _parent is None:
             _parent = self
 
@@ -512,9 +529,9 @@ class HTree(HTreeNode, typing.Generic[_T]):
             # if isinstance(_name, str) and _name.isidentifier() and (attr:=getattr(self.__class__)):  # isinstance(self, collections.abc.Mapping):
             #     s_default_value = Path(f"default_value/{_name}").get(self._metadata, _not_found_)
 
-            if isinstance(self, collections.abc.Sequence):
-                s_default_value = self._metadata.get("default_initial_value", _not_found_)
-                default_value = update_tree(deepcopy(s_default_value), default_value)
+            # if isinstance(self, collections.abc.Sequence):
+            #     s_default_value = self._metadata.get("default_initial_value", _not_found_)
+            #     default_value = update_tree(deepcopy(s_default_value), default_value)
 
             if (value is _not_found_ or value is _undefined_) and _entry is None:
                 pass
@@ -552,17 +569,6 @@ class HTree(HTreeNode, typing.Generic[_T]):
                 value._metadata.setdefault("name", _name)
             elif isinstance(_name, int):
                 value._metadata.setdefault("index", _name)
-
-        if value is _not_found_:
-            pass
-        elif _name is None and isinstance(self._cache, collections.abc.MutableSequence):
-            self._cache.append(value)
-        elif _name is None:
-            pass
-        else:
-            if _name == "equilibrium":
-                pass
-            self._cache = Path._do_update(self._cache, [_name], value, _idempotent=True)
 
         return value
 
@@ -640,11 +646,11 @@ class List(HTree[_T]):
             yield v
 
     def append(self, other):
-        self._update_(other, _idempotent=False, _extend=False)
+        self._update_(None, other, _idempotent=False, _extend=False)
         return self
 
     def extend(self, other):
-        self._update_(other, _idempotent=False, _extend=True)
+        self._update_(None, other, _idempotent=False, _extend=True)
         return self
 
     def __iadd__(self, other: list) -> typing.Type[List[_T]]:

@@ -92,10 +92,10 @@ class QueryResult(HTree):
                 yield self._type_convert(value, idx, entry=entry)
 
 
-_TNode = typing.TypeVar("_TNode")
+_TTree = typing.TypeVar("_TTree")
 
 
-class AoS(List[_TNode]):
+class AoS(List[_TTree]):
     """
     Array of structure
 
@@ -104,10 +104,12 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def __missing__(self, key) -> _TNode:
+    def __missing__(self, key) -> _TTree:
         tag = f"@{Path.id_tag_name}"
 
-        if (self._cache is None or len(self._cache) == 0) and self._entry is not None:
+        if self._cache is not None and len(self._cache) > 0:
+            pass
+        elif self._entry is not None:
             keys = set([key for key in self._entry.child(f"*/{tag}").for_each()])
             self._cache = [{tag: key} for key in keys]
         else:
@@ -121,7 +123,15 @@ class AoS(List[_TNode]):
 
         return value
 
-    def _update_(self, key, value, *args, **kwargs):
+    def _find_(self, key, *args, default_value=_undefined_, **kwargs) -> _TTree:
+        """AoS._find_ 当键值不存在时，默认强制调用 __missing__"""
+
+        if default_value is _not_found_:
+            default_value = _undefined_
+
+        return super()._find_(key, *args, default_value=default_value, **kwargs)
+
+    def _update_(self, key, value, *args, **kwargs) -> Self:
         if key is not None:
             old_value = super()._find_(key, default_value=_not_found_)
             new_value = Path._do_change(old_value, value, *args, **kwargs)
@@ -136,6 +146,7 @@ class AoS(List[_TNode]):
                     self._cache.append(v)
                 else:
                     super()._update_(id_tag, v, *args, **kwargs)
+        
         else:
             raise TypeError(f"Invalid type of value: {type(value)}")
 
