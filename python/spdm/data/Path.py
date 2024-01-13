@@ -742,7 +742,7 @@ class Path(list):
             if not is_tree(obj):
                 raise TypeError(f" {obj} is not a Tree! key= {key}")
 
-            elif key is Path.tags.current:
+            elif key is Path.tags.current or key is None:
                 next_obj = obj
 
             elif key is Path.tags.parent:
@@ -859,6 +859,9 @@ class Path(list):
         else:
             idempotent = kwargs.pop("_idempotent", True)
             extend = not idempotent
+
+            if len(args) > 0 and obj is args[0]:
+                args = args[1:]
 
             if hasattr(obj.__class__, "_update_"):
                 obj._update_(None, *args, **kwargs)

@@ -387,11 +387,15 @@ class HTree(HTreeNode, typing.Generic[_T]):
     def _insert_(self, *args, **kwargs):
         return self._update_(*args, _idempotent=False, **kwargs)
 
-    def _update_(self, key, value, *args, _setter=None, **kwargs):
-        if callable(_setter):
-            _setter(self, key, value, *args, **kwargs)
+    def _update_(self, key, *args, _setter=None, **kwargs):
+        if key is None and len(args) > 0 and args[0] is self:
+            raise NotImplementedError("To avoid self-update")
+
+        elif callable(_setter):
+            _setter(self, key, *args, **kwargs)
+
         else:
-            self._cache = Path._do_update(self._cache, [key], value, *args, **kwargs)
+            self._cache = Path._do_update(self._cache, key, *args, **kwargs)
 
         return self
 
@@ -416,16 +420,16 @@ class HTree(HTreeNode, typing.Generic[_T]):
             return Path._do_find(self._metadata, [key[1:]], *args, default_value=default_value, **kwargs)
 
         elif len(args) > 0:
-            value = Path._do_find(self._cache, [key], *args, default_value=_not_found_, **kwargs)
+            value = Path._do_find(self._cache, key, *args, default_value=_not_found_, **kwargs)
             if value is _not_found_:
                 if self._entry is not None:
-                    value = self._entry.find([key], *args, default_value=default_value, **kwargs)
+                    value = self._entry.child([key]).find(*args, default_value=default_value, **kwargs)
                 else:
                     value = default_value
             return value
 
         else:
-            value = Path._do_find(self._cache, [key], default_value=_not_found_)
+            value = Path._do_find(self._cache, key, default_value=_not_found_)
 
             if isinstance(default_value, dict):
                 value = update_tree(deepcopy(default_value), value)
