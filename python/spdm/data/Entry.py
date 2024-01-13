@@ -190,25 +190,25 @@ class Entry(Pluggable):
     ###########################################################
     # API: CRUD  operation
 
-    def insert(self, value, **kwargs) -> Entry:
-        self._data, *others = self._path.insert(self._data, value, **kwargs)
+    def insert(self, value, *args, **kwargs) -> Entry:
+        self._data, *others = self._path.insert(self._data, value, *args, **kwargs)
         return self.__class__(self._data, *others)
 
-    def update(self, value, **kwargs) -> Entry:
-        self._data = self._path.update(self._data, value, **kwargs)
+    def update(self, value, *args, **kwargs) -> Entry:
+        self._data = self._path.update(self._data, value, *args, **kwargs)
         return self
 
-    def remove(self, **kwargs) -> int:
-        self._data, num = self._path.remove(self._data, **kwargs)
+    def remove(self, *args, **kwargs) -> int:
+        self._data, num = self._path.remove(self._data, *args, **kwargs)
         return num
 
-    def find(self, op=None, *args, **kwargs) -> typing.Any:
+    def find(self, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.find(self._data, op, *args, **kwargs)
+        return self._path.find(self._data, *args, **kwargs)
 
     def keys(self) -> typing.Generator[str, None, None]:
         yield from self._path.keys(self._data)

@@ -100,7 +100,7 @@ class TestPath(unittest.TestCase):
 
         Path("b").remove(cache)
 
-        self.assertTrue(Path("b").find(cache, default_value=_not_found_) is _not_found_)
+        self.assertTrue(Path("b").find(cache) is _not_found_)
 
     def test_sequence_tag(self):
         cache = {

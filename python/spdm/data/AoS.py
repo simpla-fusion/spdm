@@ -3,6 +3,7 @@ import collections.abc
 import functools
 import typing
 from copy import deepcopy
+
 from typing_extensions import Self
 
 from spdm.data.HTree import HTree, HTreeNode
@@ -55,8 +56,6 @@ class QueryResult(HTree):
 
         return value
 
-
-
     @staticmethod
     def _default_reducer(first: typing.Any, second: typing.Any) -> typing.Any:
         if first is _not_found_:
@@ -105,51 +104,44 @@ class AoS(List[_TNode]):
         - 可以自动转换 list 类型 cache 和 entry
     """
 
-    def _update_(self, key,value,*args, **kwargs):
-        old=self._find_(key,default_value=_not_found_)
-        if old is not value:
-            super()._update_(key,value, *args, **kwargs)
-        return self
+    def __missing__(self, key) -> _TNode:
+        tag = f"@{Path.id_tag_name}"
 
-    def _find_(self, key: str | int, *args, **kwargs) -> _TNode | QueryResult[_T]:
-        """ """
+        if (self._cache is None or len(self._cache) == 0) and self._entry is not None:
+            keys = set([key for key in self._entry.child(f"*/{tag}").for_each()])
+            self._cache = [{tag: key} for key in keys]
+        else:
+            self._cache = []
 
-        if not (isinstance(key, str) and key.isidentifier()) or len(args) > 0:
-            return super()._find_(key, *args, **kwargs)
+        value = deepcopy(self._metadata.get("default_initial_value", _not_found_) or {})
 
-        self._update_cache()
+        value[f"@{Path.id_tag_name}"] = key
 
-        index, value = Path().search(self._cache, key)
-
-        if not isinstance(value, HTreeNode):
-            _entry = self._entry.child({f"@{Path.id_tag_name}": key}) if self._entry is not None else None
-            if value is _not_found_:
-                value = merge_tree(
-                    kwargs.pop("default_value", _not_found_),
-                    self._metadata.get("default_initial_value", _not_found_),
-                    {},
-                )
-                value[f"@{Path.id_tag_name}"] = key
-
-            value = self._type_convert(value, index, _entry=_entry)
+        self._cache.append(value)
 
         return value
 
+    def _update_(self, key, value, *args, **kwargs):
+        if key is not None:
+            old_value = self._find_(key, default_value=_not_found_)
+            new_value = Path._do_change(old_value, value, *args, **kwargs)
 
-    def _update_cache(self):
-        if not (self._cache is _not_found_ or len(self._cache) == 0) or self._entry is None:
-            return
+            if new_value is not old_value:
+                super()._update_(key, new_value, *args, **kwargs)
+        elif isinstance(value, list):
+            pth = Path(f"@{Path.id_tag_name}")
+            for v in value:
+                id_tag = pth.get(v, _not_found_)
+                if id_tag is _not_found_:
+                    self._cache.append(v)
+                else:
+                    self._update_(id_tag, v, *args, **kwargs)
+        else:
+            raise TypeError(f"Invalid type of value: {type(value)}")
 
-        tag = f"@{Path.id_tag_name}"
-
-        self._cache = []
-
-        keys = set([key for key in self._entry.child(f"*/{tag}").for_each()])
-
-        self._cache = [{tag: key} for key in keys]
+        return self
 
     def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
-        self._update_cache()
         tag = f"@{Path.id_tag_name}"
         for idx, v in enumerate(self._cache):
             key = Path(tag).get(v, _not_found_)
@@ -165,7 +157,7 @@ class AoS(List[_TNode]):
             # else:
             #     _entry = self._entry.child({tag: key})
             # yield self._type_convert(v, idx, _entry=_entry)
-                
+
     def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
         return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)
 

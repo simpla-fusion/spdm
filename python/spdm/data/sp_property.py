@@ -157,7 +157,7 @@ class SpProperty:
         alias=None,
         type_hint: typing.Type = None,
         doc: str = None,
-        strict: bool = False,
+        strict: bool = True,
         **kwargs,
     ):
         """
@@ -251,7 +251,7 @@ class SpProperty:
             logger.error("Can not use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance._update_(self.property_name, value, setter=self.setter)
+            instance._update_(self.property_name, value, _setter=self.setter)
 
     def __get__(self, instance: SpTree, owner_cls=None) -> _T:
         if instance is None:
@@ -275,7 +275,7 @@ class SpProperty:
                     value = instance.get(
                         self.alias,  # alias 可以是路径
                         _type_hint=self.type_hint,
-                        default_value=self.default_value,
+                        default_value=deepcopy(self.default_value),
                         _parent=_not_found_,
                     )
             else:
@@ -283,11 +283,11 @@ class SpProperty:
                     self.property_name,
                     _type_hint=self.type_hint,
                     _getter=self.getter,
-                    default_value=self.default_value,
+                    default_value=deepcopy(self.default_value),
                     **self.metadata,
                 )
 
-            if self.strict and value is _not_found_:
+            if self.strict and value is _undefined_:
                 raise AttributeError(
                     f"The value of property '{owner_cls.__name__ if owner_cls is not None else 'none'}.{self.property_name}' is not assigned!"
                 )
