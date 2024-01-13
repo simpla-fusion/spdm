@@ -1408,8 +1408,8 @@ class Path(list):
                 suffix = []
 
         if isinstance(source, collections.abc.Sequence) and not isinstance(source, str):
-            for v in source:
-                yield Path._do_find(v, suffix, *args, **kwargs)
+            for k, v in enumerate(source):
+                yield k, Path._do_find(v, suffix, *args, **kwargs)
 
         elif isinstance(source, collections.abc.Mapping):
             for k, v in source.items():
