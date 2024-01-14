@@ -457,15 +457,14 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value is _undefined_:
                 value = self.__missing__(key)
 
-            if value is not _not_found_ or _entry is not None:
-                value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
+            value = self._type_convert(value, key, _entry=_entry, default_value=default_value, **kwargs)
 
-                if key is None and isinstance(self._cache, collections.abc.MutableSequence):
-                    self._cache.append(value)
-                elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableSequence):
-                    self._cache = Path._do_update(self._cache, key, value)
-                else:
-                    self._cache[key] = value
+            if key is None and isinstance(self._cache, collections.abc.MutableSequence):
+                self._cache.append(value)
+            elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableSequence):
+                self._cache = Path._do_update(self._cache, key, value)
+            else:
+                self._cache[key] = value
 
         return value
 
@@ -526,40 +525,30 @@ class HTree(HTreeNode, typing.Generic[_T]):
         if _parent is None:
             _parent = self
 
-        if not isinstance_generic(value, _type_hint):
-            # 整合 default_value
-            # if isinstance(_name, str) and _name.isidentifier() and (attr:=getattr(self.__class__)):  # isinstance(self, collections.abc.Mapping):
-            #     s_default_value = Path(f"default_value/{_name}").get(self._metadata, _not_found_)
+        if isinstance_generic(value, _type_hint):
+            pass
+        elif issubclass(get_origin(_type_hint), HTree):
+            value = _type_hint(value, _entry=_entry, _parent=_parent, **kwargs)
 
-            # if isinstance(self, collections.abc.Sequence):
-            #     s_default_value = self._metadata.get("default_initial_value", _not_found_)
-            #     default_value = update_tree(deepcopy(s_default_value), default_value)
-
-            if (value is _not_found_ or value is _undefined_) and _entry is None:
+        else:
+            if value is not _not_found_:
                 pass
-
-            elif not issubclass(get_origin(_type_hint), HTree):
-                if value is not _not_found_:
-                    pass
-                elif _entry is not None:
-                    value = _entry.get(default_value=default_value)
-
-                elif default_value is not _undefined_:
-                    value = default_value
-
-                if value is not _not_found_ and value is not _undefined_ and value is not None:
-                    value = type_convert(_type_hint, value, **kwargs)
-                else:
-                    value = _not_found_
-
-            elif value is _not_found_:
-                if default_value is not _undefined_:
-                    value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
-                elif _entry is not None and _entry.exists:
-                    value = _type_hint(_not_found_, _entry=_entry, _parent=_parent, **kwargs)
-
+            elif _entry is not None:
+                value = _entry.get(default_value=default_value)
             else:
-                value = _type_hint(value, _entry=_entry, _parent=_parent, **kwargs)
+                value = default_value
+
+            if value is not _not_found_ and value is not _undefined_ and value is not None:
+                value = type_convert(_type_hint, value, **kwargs)
+
+            # else:
+            #     value = _not_found_
+
+        # elif value is _not_found_:
+        #     if default_value is not _undefined_:
+        #         value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
+        #     elif _entry is not None and _entry.exists:
+        #         value = _type_hint(_not_found_, _entry=_entry, _parent=_parent, **kwargs)
 
         if isinstance(value, HTreeNode):
             if value._parent is None and _parent is not _not_found_:

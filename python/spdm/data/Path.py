@@ -724,10 +724,9 @@ class Path(list):
     def _do_update(
         target: typing.Any, path: typing.List | None, value=_undefined_, _idempotent=True, **kwargs
     ) -> typing.Any:
-        
         if value is _undefined_:
             return target
-        
+
         if not isinstance(path, list):
             path = [path]
 
@@ -824,21 +823,27 @@ class Path(list):
                     raise NotImplementedError(key)
 
                 elif hasattr(obj.__class__, "_update_"):
-                    old_value = obj._find_(key, default_value=_not_found_)
-
-                    if is_tree(old_value) and idx < path_length - 1:
-                        new_value = old_value
-                    elif idx == path_length - 1:
-                        new_value = Path._do_update(old_value, [], value, _idempotent=_idempotent, **kwargs)
+                    # FIXME：更改好的实现，但需要 debug
+                    if idx == path_length - 1:
+                        obj._update_(key, value, _idempotent=_idempotent, **kwargs)
                     else:
-                        new_value = Path._do_update(old_value, path[idx + 1], _not_found_, _idempotent=_idempotent)
-                        idx -= 1
+                        obj._update_(key, _not_found_, _idempotent=_idempotent)
 
-                    if old_value is not new_value:
-                        obj._update_(key, new_value)
-                        obj = obj._find_(key, default_value=_not_found_)
-                    else:
-                        obj = new_value
+                    obj = obj._find_(key, default_value=_not_found_)
+                    # old_value = obj._find_(key, default_value=_not_found_)
+
+                    # if is_tree(old_value) and idx < path_length - 1:
+                    #     new_value = old_value
+                    # elif idx == path_length - 1:
+                    #     new_value = Path._do_update(old_value, [], value, _idempotent=_idempotent, **kwargs)
+                    # else:
+                    #     new_value = Path._do_update(old_value, path[idx + 1], _not_found_, _idempotent=_idempotent)
+                    #     idx -= 1
+
+                    # if old_value is not new_value:
+                    #     obj = obj._update_(key, new_value)
+                    # else:
+                    #     obj = new_value
 
                 elif isinstance(key, str) and key.isidentifier() and hasattr(obj.__class__, key):
                     old_value = getattr(obj, key, _not_found_)
@@ -1110,7 +1115,7 @@ class Path(list):
                 else:
                     raise NotImplementedError(f"{type(obj)} {path}")
 
-                res = Path._do_find(obj, [new_key] + path[idx +2:], *args, **kwargs)
+                res = Path._do_find(obj, [new_key] + path[idx + 2 :], *args, **kwargs)
 
             elif len(path) > 1 and path[1] is Path.tags.prev:
                 if isinstance(key, int):
@@ -1118,7 +1123,7 @@ class Path(list):
                 else:
                     raise NotImplementedError(f"{type(obj)} {path}")
 
-                res = Path._do_find(obj, [new_key] + path[idx +2:], *args, **kwargs)
+                res = Path._do_find(obj, [new_key] + path[idx + 2 :], *args, **kwargs)
 
             elif key is Path.tags.parent:
                 obj = getattr(obj, "_parent", _not_found_)
@@ -1127,7 +1132,7 @@ class Path(list):
                 # 逐级查找上层 _parent, 直到找到
                 while obj is not None and obj is not _not_found_:
                     if not isinstance(obj, collections.abc.Sequence):
-                        obj = Path._do_find(obj, path[idx +1:], *args, default_value=_not_found_, **kwargs)
+                        obj = Path._do_find(obj, path[idx + 1 :], *args, default_value=_not_found_, **kwargs)
                         if obj is not _not_found_:
                             break
                     obj = getattr(obj, "_parent", _not_found_)
@@ -1141,21 +1146,22 @@ class Path(list):
                 # 遍历访问所有叶节点
                 if isinstance(obj, collections.abc.Mapping):
                     obj = {
-                        k: Path._do_find(v, [Path.tags.descendants] + path[idx +1:], *args, **kwargs) for k, v in obj.items()
+                        k: Path._do_find(v, [Path.tags.descendants] + path[idx + 1 :], *args, **kwargs)
+                        for k, v in obj.items()
                     }
 
                 elif isinstance(obj, collections.abc.Iterable):
-                    obj = [Path._do_find(v, [Path.tags.descendants] + path[idx +1:], *args, **kwargs) for v in obj]
+                    obj = [Path._do_find(v, [Path.tags.descendants] + path[idx + 1 :], *args, **kwargs) for v in obj]
 
                 elif len(path) > 0:
-                    obj = Path._do_find(obj, path[idx +1:], *args, **kwargs)
+                    obj = Path._do_find(obj, path[idx + 1 :], *args, **kwargs)
 
             elif key is Path.tags.children:
                 if isinstance(obj, collections.abc.Mapping):
-                    obj = {k: Path._do_find(v, path[idx +1:], *args, **kwargs) for k, v in obj.items()}
+                    obj = {k: Path._do_find(v, path[idx + 1 :], *args, **kwargs) for k, v in obj.items()}
 
                 elif isinstance(obj, collections.abc.Iterable):
-                    obj = [Path._do_find(v, path[idx +1:], *args, **kwargs) for v in obj]
+                    obj = [Path._do_find(v, path[idx + 1 :], *args, **kwargs) for v in obj]
 
                 else:
                     obj = _not_found_
@@ -1165,10 +1171,12 @@ class Path(list):
                 parent = getattr(obj, "_parent", _not_found_)
 
                 if isinstance(parent, collections.abc.Mapping):
-                    obj = {k: Path._do_find(v, path[idx +1:], *args, **kwargs) for k, v in parent.items() if v is not obj}
+                    obj = {
+                        k: Path._do_find(v, path[idx + 1 :], *args, **kwargs) for k, v in parent.items() if v is not obj
+                    }
 
                 elif isinstance(parent, collections.abc.Iterable):
-                    obj = [Path._do_find(v, path[idx +1:], *args, **kwargs) for v in parent if v is not obj]
+                    obj = [Path._do_find(v, path[idx + 1 :], *args, **kwargs) for v in parent if v is not obj]
 
                 else:
                     obj = []
@@ -1184,10 +1192,12 @@ class Path(list):
 
             elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
                 if isinstance(key, int):
-                    obj = obj[key]
-
+                    if key < len(obj):
+                        obj = obj[key]
+                    else:
+                        obj = _not_found_
                 elif isinstance(key, slice):
-                    obj = [Path._do_find(s, path[idx +1:], *args, **kwargs) for s in obj[key]]
+                    obj = [Path._do_find(s, path[idx + 1 :], *args, **kwargs) for s in obj[key]]
                     break
 
                 else:
