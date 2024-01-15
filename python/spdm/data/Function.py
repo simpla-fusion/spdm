@@ -101,6 +101,9 @@ class Function(Expression):
         """
         super().__init__(None, **kwargs)
 
+        if any([x is _not_found_ for x in xy]):
+            raise ValueError(f"Illegal arguments {xy}")
+
         if len(xy) == 1 and isinstance(xy[0], tuple):
             xy = xy[0]
 

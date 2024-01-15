@@ -95,7 +95,7 @@ class TimeSeriesAoS(List[_TSlice]):
     @property
     def previous(self) -> typing.Generator[_TSlice, None, None]:
         for i in range(len(self._cache)):
-            yield self._find(-(i + 1))
+            yield self._find_(-(i + 1))
 
     @property
     def is_initializied(self) -> bool:

@@ -85,8 +85,6 @@ class SpTree(Dict[HTreeNode]):
                 value = getattr(self, k, _not_found_)
                 if value is _not_found_:
                     continue
-                if k=="ion":
-                    pass
                 cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
 
         return self.__duplicate__(cache, _parent=None)
@@ -103,7 +101,7 @@ class PropertyTree(SpTree):
             elif isinstance(res, list) and (len(res) == 0 or isinstance(res[0], (dict, HTree))):
                 return AoS[PropertyTree](res, _parent=self)
             else:
-                return res
+                return self.__missing__(key)
 
     def __missing__(self, key) -> typing.Any:
         return _not_found_

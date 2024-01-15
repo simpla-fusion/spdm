@@ -142,16 +142,14 @@ class Actor(Pluggable):
 
     def preprocess(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
+
+        inputs = {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], HTreeNode)}
+
+        self.inports.update(inputs)
+
         current = self.time_slice.current
 
         current.refresh(*args, **kwargs)
-
-        kwargs = {k: n for k, n in kwargs.items() if not isinstance(n, HTreeNode)}
-
-        # 更新 inports，返回将不是 HTreeNode 的 input
-        for k, n in kwargs.items():
-            if isinstance(n, HTreeNode):
-                self.inports._update_(k, n )
 
         return current
 
