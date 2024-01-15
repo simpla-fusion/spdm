@@ -172,7 +172,7 @@ class Actor(Pluggable):
 
         current = self.preprocess(*args, **kwargs)
 
-        current = self.execute(current, *self.time_slice.previous)
+        current = self.execute(current)  # , *self.time_slice.previous
 
         current = self.postprocess(current)
 

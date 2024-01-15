@@ -158,7 +158,7 @@ class Expression(HTreeNode):
 
     @property
     def __label__(self) -> str:
-        label = self._metadata.get("label", _not_found_)
+        label = self._metadata.get("label", super().__label__)
         if label is _not_found_:
             label = self._render_latex_()
         return str(label)

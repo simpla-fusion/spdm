@@ -125,7 +125,7 @@ class AoS(List[_TTree]):
 
     def _find_(self, key, *args, default_value=_undefined_, **kwargs) -> _TTree:
         """AoS._find_ 当键值不存在时，默认强制调用 __missing__"""
-
+        self._sync_cache()
         if default_value is _not_found_:
             default_value = _undefined_
 
@@ -139,7 +139,15 @@ class AoS(List[_TTree]):
 
         return self
 
+    def _sync_cache(self):
+        if len(self._cache) == 0 and self._entry is not None:
+            keys = self._entry.child(f"*/@{Path.id_tag_name}").get()
+            if isinstance(keys, collections.abc.Sequence):
+                keys = set(keys)
+                self._cache = [{f"@{Path.id_tag_name}": k} for k in keys]
+
     def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
+        self._sync_cache()
         tag = f"@{Path.id_tag_name}"
         for idx, v in enumerate(self._cache):
             key = Path(tag).get(v, _not_found_)

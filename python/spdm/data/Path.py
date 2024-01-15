@@ -575,6 +575,9 @@ class Path(list):
                 if selector is not None:
                     yield Path._parser_selector(selector)
 
+        elif isinstance(path, Path.tags):
+            yield path
+            
         elif isinstance(path, (int, slice, set)):
             yield path
 

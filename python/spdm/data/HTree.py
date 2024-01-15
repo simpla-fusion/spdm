@@ -180,12 +180,19 @@ class HTreeNode:
     @property
     def __path__(self) -> typing.List[str | int]:
         if isinstance(self._parent, HTreeNode):
-            return self._parent.__name__ + [self.__name__]
+            return self._parent.__path__ + [self.__name__]
         else:
             return [self.__name__]
 
+    @property
+    def __label__(self) -> str:
+        return ".".join(self.__path__)
+
     def __str__(self) -> str:
-        return f"<{self.__class__.__name__} name='{self.__name__}' />"
+        return f"<{self.__class__.__name__} name='{self.__label__}' />"
+
+    def __repr__(self) -> str:
+        return self.__label__
 
     @property
     def __root__(self) -> HTree | None:

@@ -80,10 +80,10 @@ class Port:
         return self.fragment.find(self.node, *args, **kwargs)
 
     def fetch(self, *args, **kwargs):
-        if len(args) + len(kwargs) == 0:
-            return self.fragment.find(self.node)
-        else:
-            return HTreeNode._do_fetch(self.fragment.find(self.node), *args, **kwargs)
+        res = self.fragment.find(self.node)
+        if len(args) + len(kwargs) > 0:
+            res = HTreeNode._do_fetch(res, *args, **kwargs)
+        return res
 
     @property
     def is_changed(self) -> bool:
@@ -134,7 +134,7 @@ class Ports(Dict[Port]):
 
             if isinstance(parent, SpTree):
                 for n in self.values():
-                    node=getattr(parent, n.identifier, _not_found_)
+                    node = getattr(parent, n.identifier, _not_found_)
                     n.link(node)
 
             self.refresh(getattr(parent, attr_name, _not_found_))
