@@ -375,7 +375,7 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
         fragment="",
     )
 
-    if new_url.protocol.startswith(("local+", "file+")) or (new_url.protocol == "" and new_url.path != ""):
+    if new_url.protocol.startswith(("local+", "file+")):  # or (new_url.protocol == "" and new_url.path != ""):
         # 单一文件不进行 schema 检查，直接读取。因为schema转换在文件plugin中进行。
         from .File import File
 
