@@ -69,6 +69,7 @@ class MatplotlibView(View):
 
         elif output is not None:
             logger.debug(f"Write figure to  {output}")
+            kwargs.setdefault("format", "svg")
             fig.savefig(output, transparent=transparent, **kwargs)
             plt.close(fig)
             fig = None
