@@ -131,17 +131,11 @@ class AoS(List[_TTree]):
 
         return super()._find_(key, *args, default_value=default_value, **kwargs)
 
-    def _update_(self, key, value, *args, **kwargs) -> Self:
-        pth = Path(f"@{Path.id_tag_name}")
+    def _update_(self, key, value, op=None, *args, **kwargs) -> Self:
+        if key is None and (op is None or op is Path.tags.insert):
+            key = as_path(f"@{Path.id_tag_name}").get(value, None)
 
-        if key is None:
-            key = pth.get(value, None)
-
-        if isinstance(value, list):
-            for v in value:
-                super()._update_(None, v, *args, **kwargs)
-        else:
-            super()._update_(key, value, *args, **kwargs)
+        super()._update_(key, value, op, *args, **kwargs)
 
         return self
 

@@ -246,10 +246,10 @@ class MatplotlibView(View):
         *args,
         x_axis: Expression | np.ndarray | str = None,
         x_label=None,
-        styles=None,
+        styles=_not_found_,
         **kwargs,
     ) -> typing.Any:
-        styles = update_tree(styles, kwargs)
+        styles = update_tree({}, styles, kwargs)
 
         fontsize = styles.get("fontsize", 16)
 

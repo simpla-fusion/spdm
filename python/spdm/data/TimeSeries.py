@@ -23,8 +23,8 @@ class TimeSlice(SpTree):
     def iteration(self) -> int:
         return self._iteration
 
-    def refresh(self, *args, **kwargs):
-        current = self._update_(None, *args, **kwargs)
+    def refresh(self, value=_not_found_, *args, **kwargs):
+        current = self._update_(None, value, *args, **kwargs)
         current._iteration += 1
         return current
 

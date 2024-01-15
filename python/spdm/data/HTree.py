@@ -271,11 +271,11 @@ class HTree(HTreeNode, typing.Generic[_T]):
     #############################################
     # 对后辈节点操作，支持路径
 
-    def put(self, path, value, *args, _idempotent=True, **kwargs):
-        return as_path(path).update(self, value, *args, _idempotent=_idempotent, **kwargs)
+    def put(self, path, value, *args, **kwargs):
+        return as_path(path).update(self, value, *args, **kwargs)
 
-    def get(self, path: PathLike, default_value: _T = _not_found_, **kwargs) -> _T:
-        return as_path(path).find(self, default_value=default_value, **kwargs)
+    def get(self, path: PathLike, default_value: _T = _not_found_, *args, **kwargs) -> _T:
+        return as_path(path).find(self, *args, default_value=default_value, **kwargs)
 
     @typing.final
     def pop(self, path, default_value=_not_found_):
@@ -295,7 +295,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     @typing.final
     def __setitem__(self, path, value) -> None:
-        self.put(path, value, _idempotent=True)
+        self.put(path, value, Path.tags.overwrite)
 
     @typing.final
     def __delitem__(self, path) -> None:
@@ -347,7 +347,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     @typing.final
     def update(self, *args, **kwargs) -> None:
-        if len(args) <= 1:
+        if len(args) == 0 or isinstance(args[0], dict):
             args = [None, *args]
         return self._update_(*args, **kwargs)
 
@@ -378,30 +378,11 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     # -----------------------------------------------------------------------------
     # 内部接口
-    def __missing__(self, key) -> typing.Any:
-        raise KeyError(f"{self.__class__.__name__}.{key} is not assigned! ")
 
-    def _insert_(self, *args, **kwargs):
-        return self._update_(*args, _idempotent=False, **kwargs)
+    def _insert_(self, value: typing.Any, *args, **kwargs):
+        return self._update_(None, value, Path.tags.insert, *args, **kwargs)
 
-    def _update_(self, key, *args, _setter=None, **kwargs):
-        if isinstance(key, str) and key.startswith("@"):
-            value = Path._do_update(self._metadata, key[1:], *args, **kwargs)
-            if value is not _not_found_:
-                return value
-
-        if (key is None or key == []) and len(args) > 0 and args[0] is self:
-            pass
-
-        elif callable(_setter):
-            _setter(self, key, *args, **kwargs)
-
-        else:
-            self._cache = Path._do_update(self._cache, key, *args, **kwargs)
-
-        return self
-
-    def _remove_(self, key, *args, _deleter=None, **kwargs) -> bool:
+    def _remove_(self, key: str | int, *args, _deleter: typing.Callable = None, **kwargs) -> bool:
         """删除节点：
         - 将 _cahce 中 path 对应的节点设置为 None，这样访问时不会触发 _entry
         - 若 path 为 None，删除所有子节点
@@ -409,7 +390,27 @@ class HTree(HTreeNode, typing.Generic[_T]):
         if callable(_deleter):
             return _deleter(self, key)
         else:
-            return self._update_(key, None, *args, **kwargs)
+            return self._update_(key, _not_found_, _op=Path.tags.remove, *args, **kwargs)
+
+    def _update_(self, key: str | int, value: typing.Any, _op: Path.tags = None, *args, _setter=None, **kwargs):
+        if (key is None or key == []) and value is self:
+            pass
+
+        elif isinstance(key, str) and key.startswith("@"):
+            value = Path._do_update(self._metadata, key[1:], value, _op, *args, **kwargs)
+            if value is not _not_found_:
+                return value
+
+        elif callable(_setter):
+            _setter(self, key, value)
+
+        else:
+            self._cache = Path._do_update(self._cache, key, value, _op, *args, **kwargs)
+
+        return self
+
+    def __missing__(self, key: str | int) -> typing.Any:
+        raise KeyError(f"{self.__class__.__name__}.{key} is not assigned! ")
 
     def _find_(self, key, *args, _getter=None, default_value=_undefined_, **kwargs) -> _T:
         """获取子节点/或属性
@@ -508,9 +509,9 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
     def _type_convert(
         self,
-        value,
-        _name,
-        default_value=_not_found_,
+        value: typing.Any,
+        _name: int | str,
+        default_value: typing.Any = _not_found_,
         _type_hint: typing.Type = None,
         _entry: Entry | None = None,
         _parent: HTree | None = None,
@@ -636,13 +637,11 @@ class List(HTree[_T]):
         for k, v in self.for_each():
             yield v
 
-    def append(self, other):
-        self._update_(None, other, _idempotent=False, _extend=False)
-        return self
+    def append(self, value):
+        return self._insert_(value, Path.tags.append)
 
-    def extend(self, other):
-        self._update_(None, other, _idempotent=False, _extend=True)
-        return self
+    def extend(self, value):
+        return self._insert_(value, Path.tags.extend)
 
     def __iadd__(self, other: list) -> typing.Type[List[_T]]:
         return self.extend(other)
