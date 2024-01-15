@@ -100,8 +100,10 @@ class PropertyTree(SpTree):
                 return PropertyTree(res, _parent=self)
             elif isinstance(res, list) and (len(res) == 0 or isinstance(res[0], (dict, HTree))):
                 return AoS[PropertyTree](res, _parent=self)
-            else:
+            elif res is _not_found_:
                 return self.__missing__(key)
+            else:
+                return res
 
     def __missing__(self, key) -> typing.Any:
         return _not_found_

@@ -252,7 +252,7 @@ class Expression(HTreeNode):
                 try:
                     res = self._op(*args, **kwargs)
                 except RuntimeWarning as error:
-                    logger.exception(f"{self._render_latex_()} ,{args} ")
+                    logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
 
         elif isinstance(self._op, numeric_type):
             res = self._op
