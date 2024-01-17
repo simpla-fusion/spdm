@@ -33,8 +33,13 @@ from .Path import Path, PathLike, Query, as_path, update_tree, merge_tree, path_
 class HTreeNode:
     @classmethod
     def _parser_args(cls, *args, _parent=None, _entry=None, **kwargs):
-        if len(args) > 0 and isinstance(args[0], (collections.abc.MutableMapping, collections.abc.MutableSequence)):
+        if len(args) == 0:
+            _cache = _not_found_
+        elif isinstance(args[0], (collections.abc.MutableMapping, collections.abc.MutableSequence)):
             _cache = args[0]
+            args = args[1:]
+        elif isinstance(args[0], (str, Entry)):
+            _cache = {"$entry": args[0]}
             args = args[1:]
         else:
             _cache = _not_found_
@@ -166,6 +171,9 @@ class HTreeNode:
 
         cls = get_type(self)
 
+        if len(args) == 0:
+            args = [deepcopy(self._cache)]
+
         return cls(
             *args,
             _parent=_parent,
@@ -238,8 +246,13 @@ class HTreeNode:
         elif isinstance(obj, (list, set, tuple)):
             return obj.__class__([HTreeNode._do_fetch(v, *args, **kwargs) for v in obj])
 
+        elif callable(obj):
+            return obj(*args,**kwargs)
+        
         else:
-            return obj
+            return deepcopy(obj)
+
+            # raise RuntimeError(f"Unknown argument {obj} {args} {kwargs}")
 
     def fetch(self, *args, **kwargs) -> Self:
         return self.__duplicate__(HTreeNode._do_fetch(self._cache, *args, **kwargs))
@@ -386,8 +399,8 @@ class HTree(HTreeNode, typing.Generic[_T]):
     # -----------------------------------------------------------------------------
     # 内部接口
 
-    def _insert_(self, value: typing.Any, *args, **kwargs):
-        return self._update_(None, value, Path.tags.insert, *args, **kwargs)
+    def _insert_(self, value: typing.Any, _op=None, *args, **kwargs):
+        return self._update_(None, value, _op or Path.tags.insert, *args, **kwargs)
 
     def _remove_(self, key: str | int, *args, _deleter: typing.Callable = None, **kwargs) -> bool:
         """删除节点：
@@ -440,7 +453,13 @@ class HTree(HTreeNode, typing.Generic[_T]):
                     value = default_value
 
         else:
-            value = Path._do_find(self._cache, key, default_value=_not_found_)
+            if isinstance(key, int):
+                if key < len(self._cache):
+                    value = self._cache[key]
+                else:
+                    value = _not_found_
+            else:
+                value = Path._do_find(self._cache, key, default_value=_not_found_)
 
             # if isinstance(default_value, dict):
             #     value = update_tree(deepcopy(default_value), value)

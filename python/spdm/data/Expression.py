@@ -191,14 +191,8 @@ class Expression(HTreeNode):
                 res = expr.__class__.__name__
             vargs.append(res)
 
-        if (op_tag := self._metadata.get("label", self._metadata.get("name", None))) is not None:
-            if len(vargs) == 0:
-                res = op_tag
-            else:
-                res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
-
-        elif isinstance(self._op, np.ufunc):
-            op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__name__)
+        if isinstance(self._op, np.ufunc):
+            op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__class__.__name__)
 
             if self._op.nin == 1:
                 res = rf"{op_tag}{{{vargs[0]}}}"
@@ -210,6 +204,12 @@ class Expression(HTreeNode):
                     res = rf"{{{vargs[0]}}} {op_tag} {{{vargs[1]}}}"
             else:
                 raise RuntimeError(f"Tri-op is not defined!")
+
+        elif (op_tag := self._metadata.get("label", self._metadata.get("name", None))) is not None:
+            if len(vargs) == 0:
+                res = op_tag
+            else:
+                res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
 
         else:
             if isinstance(self._op, Expression):
@@ -251,7 +251,7 @@ class Expression(HTreeNode):
                 warnings.filterwarnings("error", category=RuntimeWarning)
                 try:
                     res = self._op(*args, **kwargs)
-                except RuntimeWarning as error:
+                except RuntimeWarning:
                     logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
 
         elif isinstance(self._op, numeric_type):

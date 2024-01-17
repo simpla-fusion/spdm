@@ -760,7 +760,7 @@ class Path(list):
             elif hasattr(target.__class__, "_update_"):
                 target._update_([], value, _op, *args, **kwargs)
 
-            elif isinstance(value, dict):
+            elif isinstance(value, dict) and (_op is None or _op is Path.tags.update):
                 for k, v in value.items():
                     target = Path._do_update(target, as_path(k)[:], v, _op, *args, **kwargs)
 

@@ -323,6 +323,7 @@ class Polynomials(Expression):
 
         if not isinstance(x, (array_type, float)):
             return super().__call__(x)
+        
         if self._preprocess is not None:
             x = self._preprocess(x)
 

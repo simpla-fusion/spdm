@@ -63,7 +63,9 @@ class Pluggable(metaclass=abc.ABCMeta):
         if sub_list is None:
             sub_list = cls._plugin_guess_name(self, *args, **kwargs)
 
-        if not isinstance(sub_list, list):
+        if sub_list is None:
+            sub_list = []
+        elif not isinstance(sub_list, list):
             sub_list = [sub_list]
 
         n_cls = None
@@ -95,7 +97,7 @@ class Pluggable(metaclass=abc.ABCMeta):
             if n_cls is not None:
                 break
 
-        if n_cls is cls and "dummy" in sub_list:
+        if (n_cls is cls or n_cls is None) and ("dummy" in sub_list or len(sub_list) == 0):
             return
         elif inspect.isclass(n_cls) and issubclass(n_cls, cls):
             self.__class__ = n_cls

@@ -18,7 +18,7 @@ from ..utils.typing import array_type
 
 
 class RectInterpolateOp(Functor):
-    def __init__(self, *xy, periods=None, check_nan=True, extrapolate=0, **kwargs) -> None:
+    def __init__(self, *xy, periods=None, check_nan=False, extrapolate=0, **kwargs) -> None:
         super().__init__(None)
 
         if len(xy) == 0:

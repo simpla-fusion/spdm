@@ -132,8 +132,11 @@ class AoS(List[_TTree]):
         return super()._find_(key, *args, default_value=default_value, **kwargs)
 
     def _update_(self, key, value, op=None, *args, **kwargs) -> Self:
-        if key is None and (op is None or op is Path.tags.insert):
+        if (key is None or key is _not_found_) and op is not Path.tags.extend:
             key = as_path(f"@{Path.id_tag_name}").get(value, None)
+
+            if key is _not_found_ or key is None:
+                raise KeyError(f"key is not found in {value} {op}")
 
         super()._update_(key, value, op, *args, **kwargs)
 
@@ -143,18 +146,17 @@ class AoS(List[_TTree]):
         if len(self._cache) == 0 and self._entry is not None:
             keys = self._entry.child(f"*/@{Path.id_tag_name}").get()
             if isinstance(keys, collections.abc.Sequence):
-                keys = set(keys)
+                keys = set([k for k in keys if k is not _not_found_ and k is not None])
                 self._cache = [{f"@{Path.id_tag_name}": k} for k in keys]
 
     def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
         self._sync_cache()
         tag = f"@{Path.id_tag_name}"
         for idx, v in enumerate(self._cache):
-            key = Path(tag).get(v, _not_found_)
-            if key is _not_found_:
-                yield idx, self._find_(idx, *args, **kwargs)
+            if isinstance(v, (dict, HTree)) and (key := Path(tag).get(v, _not_found_)) is not _not_found_:
+                yield idx, self._find_(key, *args, **kwargs)
             else:
-                yield key, self._find_(key, *args, **kwargs)
+                yield idx, self._find_(idx, *args, **kwargs)
 
             # if self._entry is None:
             #     _entry = None

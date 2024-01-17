@@ -77,15 +77,23 @@ class SpTree(Dict[HTreeNode]):
 
         return super()._do_serialize(data, dumper)
 
-    def fetch(self, *args, **kwargs) -> Self:
-        cache = {}
+    def fetch(self, *args, exclude=[], **kwargs) -> Self:
+        if len(args) + len(kwargs) == 0:
+            cache = deepcopy(self._cache)
+        else:
+            cache = {}
 
-        for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
-            if attr.getter is None and attr.alias is None:
-                value = getattr(self, k, _not_found_)
-                if value is _not_found_:
+            for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
+                if k in exclude:
                     continue
-                cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
+                if attr.getter is None and attr.alias is None:
+                    value = getattr(self, k, _not_found_)
+                    if value is _not_found_:
+                        continue
+                    elif isinstance(value, HTreeNode):
+                        cache[k] = value.fetch(*args, **kwargs)
+                    else:
+                        cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
 
         return self.__duplicate__(cache, _parent=None)
 
