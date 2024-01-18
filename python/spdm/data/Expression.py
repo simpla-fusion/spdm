@@ -47,7 +47,7 @@ class Expression(HTreeNode):
 
     """
 
-    def __init__(self, op, *args, **kwargs) -> None:
+    def __init__(self, first, *args, **kwargs) -> None:
         """
         Parameters
 
@@ -61,15 +61,15 @@ class Expression(HTreeNode):
 
         """
 
-        if self.__class__ is not Expression or callable(op) or op is None:
+        if self.__class__ is not Expression or callable(first) or first is None:
             super().__init__(**kwargs)
 
-            self._op = op
+            self._op = first
             self._children = args
 
         else:
-            if is_scalar(op):
-                match op:
+            if is_scalar(first):
+                match first:
                     case 0:
                         TP = ConstantZero
                     case 1:
@@ -77,7 +77,7 @@ class Expression(HTreeNode):
                     case _:
                         TP = Scalar
 
-            elif isinstance(op, array_type):
+            elif isinstance(first, array_type):
                 # 构建插值函数
                 from .Function import Function
 
@@ -89,7 +89,7 @@ class Expression(HTreeNode):
 
             self.__class__ = TP
 
-            TP.__init__(self, op, *args, **kwargs)
+            TP.__init__(self, first, *args, **kwargs)
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
@@ -123,10 +123,13 @@ class Expression(HTreeNode):
 
     def __array__(self) -> ArrayType:
         """在定义域上计算表达式。"""
-        if not is_array(self._cache) and self.domain is not None:
-            self._cache = self.__call__(*self.domain.points)
-        if not isinstance(self._cache, (np.ndarray, float, int, bool)):
-            raise RuntimeError(f"Can not calcuate! {self._cache}")
+
+        if self._cache is not None:
+            pass
+        elif self.domain is not None:
+            self._cache = self.__eval__(*self._eval_children(*self.domain.points))
+        else:
+            self._cache = self.__eval__(*self._eval_children())
 
         return self._cache
 
@@ -286,16 +289,26 @@ class Expression(HTreeNode):
         elif any([callable(val) for val in args]):
             return Expression(self, *args, **kwargs)
 
-        else:
-            try:
-                if len(self._children) > 0:
-                    args = [(child(*args, **kwargs) if callable(child) else child) for child in self._children]
-                    kwargs = {}
-                res = self.__eval__(*args)
-            except Exception as error:
-                raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
+        elif len(self._children) > 0:
+            return self.__eval__(*self._eval_children(*args, **kwargs))
 
-        return res
+        else:
+            return self.__eval__(*args, **kwargs)
+
+    def _eval_children(self, *args, **kwargs):
+        new_children = []
+        for child in self._children:
+            try:
+                if callable(child) and len(args) + len(kwargs) > 0:
+                    value = child(*args, **kwargs)
+                else:
+                    value = np.asarray(child)
+
+            except Exception as error:
+                raise RuntimeError(f"Failure to calculate  child {child} !") from error
+            else:
+                new_children.append(value)
+        return new_children
 
     def fetch(self, *args, _parent=None, **kwargs):
         res = self.__call__(*args, **kwargs)
@@ -637,9 +650,7 @@ def piecewise(func_cond, size=None, **kwargs):
 
 def derivative(y, *args, order=1):
     if isinstance(y, array_type):
-        from .Function import Function
-
-        return Function(*args, y).d(*args)
+        return Expression(*args, y).d(*args)
     else:
         return Derivative(order, y, *args)
 

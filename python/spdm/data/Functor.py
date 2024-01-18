@@ -82,7 +82,7 @@ class Functor:
             kwargs.update(self._opts)
             value = op(*args, **kwargs)
         except Exception as error:
-            raise RuntimeError(f"Error when apply  op={op} args={len(args)} kwargs={kwargs}!") from error
+            raise RuntimeError(f"Error when apply  op={op} args={args} kwargs={kwargs}!") from error
 
         return value
 

@@ -247,8 +247,8 @@ class HTreeNode:
             return obj.__class__([HTreeNode._do_fetch(v, *args, **kwargs) for v in obj])
 
         elif callable(obj):
-            return obj(*args,**kwargs)
-        
+            return obj(*args, **kwargs)
+
         else:
             return deepcopy(obj)
 
@@ -536,7 +536,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
     def _type_convert(
         self,
         value: typing.Any,
-        _name: int | str,
+        _key: int | str,
         default_value: typing.Any = _not_found_,
         _type_hint: typing.Type = None,
         _entry: Entry | None = None,
@@ -544,7 +544,7 @@ class HTree(HTreeNode, typing.Generic[_T]):
         **kwargs,
     ) -> _T:
         if _type_hint is None:
-            _type_hint = self._type_hint_(_name)
+            _type_hint = self._type_hint_(_key)
 
         if _type_hint is None:
             return value
@@ -581,12 +581,14 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value._parent is None and _parent is not _not_found_:
                 value._parent = _parent
 
+            name = kwargs.pop("name", _not_found_)
+
             if len(kwargs) > 0:
                 value._metadata.update(kwargs)
-            if isinstance(_name, str) and _name.isidentifier():
-                value._metadata.setdefault("name", _name)
-            elif isinstance(_name, int):
-                value._metadata.setdefault("index", _name)
+            if isinstance(_key, str) and "name" not in self._metadata:
+                value._metadata["name"] = _key
+            elif isinstance(_key, int):
+                value._metadata.setdefault("index", _key)
 
         return value
 
