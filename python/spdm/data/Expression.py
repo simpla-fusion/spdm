@@ -47,7 +47,7 @@ class Expression(HTreeNode):
 
     """
 
-    def __init__(self, first, *args, **kwargs) -> None:
+    def __init__(self, op, *args, **kwargs) -> None:
         """
         Parameters
 
@@ -61,35 +61,34 @@ class Expression(HTreeNode):
 
         """
 
-        if self.__class__ is not Expression or callable(first) or first is None:
+        if self.__class__ is not Expression:
             super().__init__(**kwargs)
-
-            self._op = first
+            self._op = op
             self._children = args
 
-        else:
-            if is_scalar(first):
-                match first:
-                    case 0:
-                        TP = ConstantZero
-                    case 1:
-                        TP = ConstantOne
-                    case _:
-                        TP = Scalar
-
-            elif isinstance(first, array_type):
-                # 构建插值函数
-                from .Function import Function
-
-                TP = Function
-
-            else:
-                return
-                # raise RuntimeError(f"Unknown functor {op} {type(op)}")
+        elif is_scalar(op):  # 常量/标量表达式
+            match op:
+                case 0:
+                    TP = ConstantZero
+                case 1:
+                    TP = ConstantOne
+                case _:
+                    TP = Scalar
 
             self.__class__ = TP
+            TP.__init__(self, op, *args, **kwargs)
 
-            TP.__init__(self, first, *args, **kwargs)
+        elif isinstance(op, array_type):  # 构建插值函数
+            from .Function import Function
+
+            TP = Function
+            self.__class__ = TP
+            TP.__init__(self, op, *args, **kwargs)
+
+        else:  # 一般表达式
+            super().__init__(**kwargs)
+            self._op = op
+            self._children = args
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
@@ -124,12 +123,9 @@ class Expression(HTreeNode):
     def __array__(self) -> ArrayType:
         """在定义域上计算表达式。"""
 
-        if self._cache is not None:
-            pass
-        elif self.domain is not None:
-            self._cache = self.__eval__(*self._eval_children(*self.domain.points))
-        else:
-            self._cache = self.__eval__(*self._eval_children())
+        if self._cache is None or self._cache is _not_found_:
+            x = self.domain.points if self.domain is not None else []
+            self._cache = self.__eval__(*self._eval_children(*x))
 
         return self._cache
 
@@ -154,10 +150,6 @@ class Expression(HTreeNode):
     @property
     def empty(self) -> bool:
         return not self.has_children and self._op is None
-
-    @property
-    def callable(self):
-        return callable(self._op) or self.has_children
 
     @property
     def __label__(self) -> str:
