@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.data.Expression import Expression, Variable
+from spdm.data.Expression import Expression, Variable, derivative
 from spdm.data.Function import Function
 from spdm.utils.logger import logger
 
@@ -59,6 +59,8 @@ class TestFunction(unittest.TestCase):
         y2 = np.sin(x2 * TWOPI)
 
         self.assertTrue(np.allclose(y2, fun(x2)))
+
+
 
 
 if __name__ == "__main__":

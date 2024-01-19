@@ -325,10 +325,10 @@ class Expression(HTreeNode):
         raise NotImplementedError()
 
     def derivative(self, order: int, *args, **kwargs) -> Derivative | Expression:
-        return Derivative(order, self, *args, **kwargs) if order != 0 else self
+        return Derivative(self, *args, order=order, **kwargs) if order != 0 else self
 
     def antiderivative(self, order: int, *args, **kwargs) -> Antiderivative | Expression:
-        return Antiderivative(order, self, *args, **kwargs) if order != 0 else self
+        return Antiderivative(self, *args, order=order, **kwargs) if order != 0 else self
 
     def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> PartialDerivative | Expression:
         return PartialDerivative(order, self, *args, **kwargs) if order is not None and len(order) > 0 else self
@@ -648,22 +648,6 @@ def piecewise(func_cond, size=None, **kwargs):
         return Piecewise(func_cond, **kwargs)
 
 
-def derivative(y, *args, order=1):
-    if isinstance(y, array_type):
-        return Expression(*args, y).d(*args)
-    else:
-        return Derivative(order, y, *args)
-
-
-def integral(y, *args, order=1):
-    if isinstance(y, array_type):
-        from .Function import Function
-
-        return Function(*args, y).I(*args)
-    else:
-        return Antiderivative(order, y, *args)
-
-
 class Derivative(Expression):
     """算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
     受 np.ufunc 启发而来。
@@ -671,7 +655,7 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, order, expr: Expression, *args, **kwargs):
+    def __init__(self, expr: Expression, *args, order=1, **kwargs):
         super().__init__(None, *args, **kwargs)
         self._order = order
         self._expr = expr
@@ -709,8 +693,8 @@ class Derivative(Expression):
 
 
 class Antiderivative(Derivative):
-    def __init__(self, order, expr, **kwargs):
-        super().__init__(-order, expr, **kwargs)
+    def __init__(self, expr, order=1, **kwargs):
+        super().__init__(expr, order=-order, **kwargs)
 
     def _render_latex_(self) -> str:
         if isinstance(self._order, (list, tuple)):
@@ -725,6 +709,14 @@ class Antiderivative(Derivative):
     def _eval(self, *args, **kwargs):
         ppoly, x = self._ppoly(*args, **kwargs)
         return ppoly.antiderivative(self._order)(x)
+
+
+def derivative(*args, order=1, **kwargs):
+    return Derivative(*args, order=order, **kwargs)
+
+
+def integral(*args, order=1, **kwargs):
+    return Antiderivative(*args, order=order, **kwargs)
 
 
 class PartialDerivative(Derivative):

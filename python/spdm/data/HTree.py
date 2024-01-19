@@ -568,14 +568,6 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value is not _not_found_ and value is not _undefined_ and value is not None:
                 value = type_convert(_type_hint, value, **kwargs)
 
-            # else:
-            #     value = _not_found_
-
-        # elif value is _not_found_:
-        #     if default_value is not _undefined_:
-        #         value = _type_hint(default_value, _entry=_entry, _parent=_parent, **kwargs)
-        #     elif _entry is not None and _entry.exists:
-        #         value = _type_hint(_not_found_, _entry=_entry, _parent=_parent, **kwargs)
 
         if isinstance(value, HTreeNode):
             if value._parent is None and _parent is not _not_found_:
