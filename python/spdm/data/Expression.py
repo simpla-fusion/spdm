@@ -10,11 +10,13 @@ from ..utils.typing import ArrayType
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
 from ..utils.logger import logger
+from ..utils.misc import group_dict_by_prefix
+
 from ..numlib.interpolate import interpolate
 
 from .Functor import Functor
 from .Entry import Entry
-from .HTree import HTreeNode, HTree, HTreeNode
+from .HTree import HTreeNode, HTree, HTreeNode, List
 from .Domain import DomainBase
 from .Path import update_tree, Path
 from .Functor import Functor, DerivativeOp
@@ -46,6 +48,59 @@ class Expression(HTreeNode):
 
 
     """
+
+    Domain = DomainBase
+
+    @staticmethod
+    def guess_dims(holder, prefix="coordinate", **kwargs):
+        if holder is None or holder is _not_found_:
+            return _not_found_
+        elif isinstance(holder, List):
+            return Expression.guess_dims(holder._parent, prefix=prefix, **kwargs)
+
+        coords = []
+
+        metadata = getattr(holder, "_metadata", {})
+
+        dims_s, *_ = group_dict_by_prefix(metadata, prefix, sep=None)
+
+        if dims_s is not None and len(dims_s) > 0:
+            dims_s = {int(k): v for k, v in dims_s.items() if k.isdigit()}
+            dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
+
+            for c in dims_s.values():
+                if not isinstance(c, str):
+                    d = as_array(c)
+                elif c == "1...N":
+                    d = None
+                # elif isinstance(holder, HTree):
+                #     d = holder.get(c, _not_found_)
+                else:
+                    d = Path(c).get(holder, _not_found_)
+
+                if d is _not_found_ or d is None:
+                    # logger.warning(f"Can not get coordinates {c} from {holder}")
+                    coords = []
+                    break
+                coords.append(as_array(d))
+
+                # elif c.startswith("../"):
+                #     d = as_array(holder._parent.get(c[3:], _not_found_))
+                # elif c.startswith(".../"):
+                #     d = as_array(holder._parent.get(c, _not_found_))
+                # elif hasattr(holder.__class__, "get"):
+                #     d = as_array(holder.get(c, _not_found_))
+                # else:
+                #     d = _not_found_
+                # elif c.startswith("*/"):
+                #     raise NotImplementedError(f"TODO:{self.__class__}.dims:*/")
+                # else:
+                #     d = as_array(holder.get(c, _not_found_))
+
+        if len(coords) == 0:
+            return Expression.guess_dims(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
+        else:
+            return tuple(coords)
 
     def __init__(self, op, *args, **kwargs) -> None:
         """
@@ -82,6 +137,7 @@ class Expression(HTreeNode):
             from .Function import Function
 
             TP = Function
+
             self.__class__ = TP
             TP.__init__(self, op, *args, **kwargs)
 

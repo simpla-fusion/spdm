@@ -12,63 +12,11 @@ from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, get_args, get_origin, as_array
-from ..utils.misc import group_dict_by_prefix
 from .Expression import Expression, zero
 from .Functor import Functor
 from .Path import update_tree, Path
 from .Domain import DomainBase
 from .HTree import List
-
-
-def guess_coords(holder, prefix="coordinate", **kwargs):
-    if holder is None or holder is _not_found_:
-        return None
-    elif isinstance(holder, List):
-        return guess_coords(holder._parent, prefix=prefix, **kwargs)
-
-    coords = []
-
-    metadata = getattr(holder, "_metadata", {})
-
-    dims_s, *_ = group_dict_by_prefix(metadata, prefix, sep=None)
-
-    if dims_s is not None and len(dims_s) > 0:
-        dims_s = {int(k): v for k, v in dims_s.items() if k.isdigit()}
-        dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
-
-        for c in dims_s.values():
-            if not isinstance(c, str):
-                d = as_array(c)
-            elif c == "1...N":
-                d = None
-            # elif isinstance(holder, HTree):
-            #     d = holder.get(c, _not_found_)
-            else:
-                d = Path(c).get(holder, _not_found_)
-
-            if d is _not_found_ or d is None:
-                # logger.warning(f"Can not get coordinates {c} from {holder}")
-                coords = []
-                break
-            coords.append(as_array(d))
-
-            # elif c.startswith("../"):
-            #     d = as_array(holder._parent.get(c[3:], _not_found_))
-            # elif c.startswith(".../"):
-            #     d = as_array(holder._parent.get(c, _not_found_))
-            # elif hasattr(holder.__class__, "get"):
-            #     d = as_array(holder.get(c, _not_found_))
-            # else:
-            #     d = _not_found_
-            # elif c.startswith("*/"):
-            #     raise NotImplementedError(f"TODO:{self.__class__}.dims:*/")
-            # else:
-            #     d = as_array(holder.get(c, _not_found_))
-
-    if len(coords) == 0:
-        return guess_coords(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
-    else:
-        return tuple(coords)
 
 
 class Function(Expression):
@@ -81,8 +29,6 @@ class Function(Expression):
 
     函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
     """
-
-    Domain = DomainBase
 
     def __init__(self, *xy: array_type, **kwargs):
         """
@@ -107,23 +53,11 @@ class Function(Expression):
         if len(xy) == 1 and isinstance(xy[0], tuple):
             xy = xy[0]
 
-        match len(xy):
-            case 0:
-                raise RuntimeError(f"illegal x,y {xy} ")
+        if len(xy) == 0:
+            raise RuntimeError(f"illegal x,y {xy} ")
 
-            case 1:
-                x = []
-                y = xy[-1]
-
-            case _:
-                x = xy[:-1]
-                y = xy[-1]
-
-        if len(x) == 0:
-            x = guess_coords(self)
-
-        if x is None or len(x) == 0:
-            x = [np.linspace(0, 1, y.size)]
+        x = xy[:-1]
+        y = xy[-1]
 
         self._dims = tuple(x)
 
@@ -157,12 +91,17 @@ class Function(Expression):
     @property
     def dims(self) -> typing.Tuple[array_type, ...]:
         """函数的网格，即定义域的网格"""
+        if self._dims is _not_found_ or len(self._dims) == 0:
+            self._dims = Expression.guess_dims(self)
+            if self._dims is None or len(self._dims) == 0:
+                self._dims = [np.linspace(0, 1, self._cache.size)]
+
         return self._dims
 
     @property
     def ndim(self) -> int:
         """函数的维度，函数所能接收参数的个数。"""
-        return len(self._dims)
+        return len(self.dims)
 
     @property
     def rank(self) -> int:
@@ -175,13 +114,10 @@ class Function(Expression):
             if not isinstance(self._cache, array_type):
                 raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
 
-            if len(self._dims) == 0:
-                raise RuntimeError(f" Dimension is not defined!   {self._dims} ")
-
             periods = (self._metadata.get("periods", None),)
             extrapolate = (self._metadata.get("extrapolate", 0),)
 
-            self._op = interpolate(*self._dims, self._cache, periods=periods, extrapolate=extrapolate)
+            self._op = interpolate(*self.dims, self._cache, periods=periods, extrapolate=extrapolate)
         return self._op
 
     def __eval__(self, *args, **kwargs):
@@ -323,7 +259,7 @@ class Polynomials(Expression):
 
         if not isinstance(x, (array_type, float)):
             return super().__call__(x)
-        
+
         if self._preprocess is not None:
             x = self._preprocess(x)
 
