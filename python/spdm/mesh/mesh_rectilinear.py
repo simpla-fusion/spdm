@@ -113,7 +113,7 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.meshgrid(*self._dims, indexing="ij")
 
-    def interpolator(self, value: ArrayType, **kwargs):
+    def interpolate(self, value: ArrayType, **kwargs):
         """生成插值器
         method: "linear",   "nearest", "slinear", "cubic", "quintic" and "pchip"
         """

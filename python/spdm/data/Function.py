@@ -30,7 +30,7 @@ class Function(Expression):
     函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
     """
 
-    def __init__(self, *xy: array_type, **kwargs):
+    def __init__(self, *xy: array_type, domain=_not_found_, **kwargs):
         """
         Parameters
         ----------
@@ -45,7 +45,6 @@ class Function(Expression):
             * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
             * if ext=1  or 'nan', return nan
         """
-        super().__init__(None, **kwargs)
 
         if any([x is _not_found_ for x in xy]):
             raise ValueError(f"Illegal arguments {xy}")
@@ -59,68 +58,32 @@ class Function(Expression):
         x = xy[:-1]
         y = xy[-1]
 
-        self._dims = tuple(x)
+        if domain is _not_found_ and len(x) > 0:
+            domain = x
+        elif len(x) > 0 and domain is not _not_found_:
+            raise RuntimeError(f"Redefined domain {domain} {x}")
+
+        super().__init__(None, domain=domain, **kwargs)
 
         self._cache = y
 
     def __copy__(self) -> Self:
         """copy from other"""
         other: Function = super().__copy__()
-        other._dims = self._dims
         other._cache = self._cache
         return other
-
-    def __repr__(self) -> str:
-        return f"{self.__label__}"
 
     def __getitem__(self, idx) -> NumericType:
         return self._cache[idx]
 
     def __setitem__(self, idx, value) -> None:
-        self._op = None
+        self._ppoly = None
         self._cache[idx] = value
 
-    @property
-    def x_label(self) -> str:
-        return self._metadata.get("x_label", "[-]")
+    def __array__(self) -> array_type:
+        return self._cache
 
-    @functools.cached_property
-    def domain(self) -> DomainBase:
-        return self.__class__.Domain(*self.dims)
-
-    @property
-    def dims(self) -> typing.Tuple[array_type, ...]:
-        """函数的网格，即定义域的网格"""
-        if self._dims is _not_found_ or len(self._dims) == 0:
-            self._dims = Expression.guess_dims(self)
-            if self._dims is None or len(self._dims) == 0:
-                self._dims = [np.linspace(0, 1, self._cache.size)]
-
-        return self._dims
-
-    @property
-    def ndim(self) -> int:
-        """函数的维度，函数所能接收参数的个数。"""
-        return len(self.dims)
-
-    @property
-    def rank(self) -> int:
-        """函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定"""
-        return self._cache.shape[self.ndim :] if len(self._cache.shape) > self.ndim else 1
-
-    @property
-    def _ppoly(self):
-        if self._op is None:
-            if not isinstance(self._cache, array_type):
-                raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
-
-            periods = (self._metadata.get("periods", None),)
-            extrapolate = (self._metadata.get("extrapolate", 0),)
-
-            self._op = interpolate(*self.dims, self._cache, periods=periods, extrapolate=extrapolate)
-        return self._op
-
-    def __eval__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         """
         对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
@@ -141,43 +104,7 @@ class Function(Expression):
             if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
         """
 
-        res = self._ppoly(*args, **kwargs)
-
-        return res
-
-    def derivative(self, order, *args, **kwargs) -> Expression:
-        if len(self.__array__().shape) == 0:
-            return zero
-        else:
-            return Expression(
-                self._ppoly.derivative(order, *args, **kwargs),
-                _parent=self._parent,
-                **collections.ChainMap({"label": rf"d_{{{order}}} {self.__repr__()}"}, self._metadata),
-            )
-
-    def antiderivative(self, order: int, *args, **kwargs) -> Expression:
-        if len(self.__array__().shape) == 0:
-            return zero
-        else:
-            label = rf"\int_{{{order}}} {self.__repr__()}" if order > 1 else rf"\int {self.__repr__()}"
-            return Expression(
-                self._ppoly.derivative(-order, *args, **kwargs),
-                _parent=self._parent,
-                **collections.ChainMap({"label": label}, self._metadata),
-            )
-
-    def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> Expression:
-        if len(self.__array__().shape) == 0:
-            return zero
-        else:
-            return Expression(
-                self._ppoly.derivative(order, *args, **kwargs),
-                _parent=self._parent,
-                **collections.ChainMap({"label": rf"d_{{{order}}} {self.__repr__()}"}, self._metadata),
-            )
-
-    def integral(self, *args, **kwargs) -> float:
-        raise NotImplementedError(f"TODO:integral")
+        return self.__ppoly__()(*args, **kwargs)
 
     def validate(self, value=None, strict=False) -> bool:
         """检查函数的定义域和值是否匹配"""

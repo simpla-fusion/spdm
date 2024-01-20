@@ -8,6 +8,9 @@ from enum import Enum
 import numpy as np
 import numpy.typing as np_tp
 
+from spdm.utils.typing import array_type
+
+from ..data.Domain import DomainBase
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
@@ -126,7 +129,7 @@ class Field(Expression):
         self._op = func
         self._mesh = mesh
         self._cache = value
-        self._ppoly_holder = None
+        self._ppoly = None
 
     def __geometry__(self, view_point="RZ", **kwargs):
         """
@@ -150,12 +153,6 @@ class Field(Expression):
 
         return display(self.__geometry__(), output="svg")
 
-    def __array__(self) -> array_type:
-        """在定义域上计算表达式。"""
-        if not is_array(self._cache):
-            raise RuntimeError(f"Can not calcuate! {self._cache}")
-        return self._cache
-
     @property
     def mesh(self) -> Mesh:
         if isinstance(self._mesh, Mesh):
@@ -170,10 +167,15 @@ class Field(Expression):
 
         return self._mesh
 
-    def __eval__(self, *args, **kwargs) -> typing.Callable[..., ArrayType]:
-        if self._op is None and self._cache is not None:
-            self._op = self._ppoly
-        return self._op(*args, **kwargs)
+    @property
+    def domain(self) -> DomainBase:
+        return self.mesh
+
+    def __call__(self, *args, **kwargs) -> typing.Callable[..., ArrayType]:
+        if all([isinstance(a, (array_type, float, int)) for a in args]):
+            return self.__ppoly__()(*args, **kwargs)
+        else:
+            return super().__call__(*args, **kwargs)
 
     def grad(self, n=1) -> Field:
         ppoly = self.__functor__()
@@ -211,22 +213,33 @@ class Field(Expression):
         else:
             raise NotImplemented(f"TODO: ndim={self.mesh.ndim} n={n}")
 
-    @property
-    def _ppoly(self):
-        if self._ppoly_holder is None:
-            self._ppoly_holder = self.mesh.interpolator(self.__array__())
-        return self._ppoly_holder
+    def __array__(self) -> array_type:
+        if self._cache is None or self._cache is _not_found_:
+            if self._op is None:
+                raise RuntimeError(f"op is not defined!")
+            x = self.domain.points
+            if len(x) == 0:
+                raise RuntimeError(f"Domain is not defined!")
+            
+            self._cache = self._op(*x)
+            
+        return self._cache
+
+    def __ppoly__(self):
+        if self._ppoly is None:
+            self._ppoly = self.domain.interpolate(self.__array__())
+        return self._ppoly
 
     def derivative(self, order, *args, **kwargs) -> Field:
         if isinstance(order, int) and order < 0:
-            func = self._ppoly.antiderivative(*order)
-            return Field(func, mesh=self.mesh, name=f"I_{order}({self})")
+            func = self.__ppoly__().antiderivative(*order)
+            return Field(func, mesh=self.mesh, label=f"I_{{{order}}}{{{self._render_latex_()}}}")
         elif isinstance(order, collections.abc.Sequence):
-            func = self._ppoly.partial_derivative(*order)
-            return Field(func, mesh=self.mesh, name=f"d_{order}({self})")
+            func = self.__ppoly__().partial_derivative(*order)
+            return Field(func, mesh=self.mesh, label=f"d_{{{order}}}{{{self._render_latex_()}}}")
         else:
-            func = self._ppoly.derivative(order)
-            return Field(func, mesh=self.mesh, name=f"d_{order}({self})")
+            func = self.__ppoly__().derivative(order)
+            return Field(func, mesh=self.mesh, label=f"d_{{{order}}}{{{self._render_latex_()}}}")
 
     def antiderivative(self, order: int, *args, **kwargs) -> Field:
         raise NotImplementedError(f"")

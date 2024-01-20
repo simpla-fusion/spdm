@@ -11,7 +11,6 @@ from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
-
 from ..numlib.interpolate import interpolate
 
 from .Functor import Functor
@@ -102,7 +101,26 @@ class Expression(HTreeNode):
         else:
             return tuple(coords)
 
-    def __init__(self, op, *args, **kwargs) -> None:
+    @staticmethod
+    def guess_domain(holder, **kwargs):
+        domain = None
+        while holder is not _not_found_ and holder is not None:
+            domain_pth = getattr(holder, "_metadata", {}).get("domain", None)
+            if domain_pth is not None:
+                domain = Path(domain_pth).get(holder, _not_found_)
+                if domain is not _not_found_:
+                    break
+            holder = getattr(holder, "_parent", None)
+
+        if isinstance(domain, array_type) and domain.ndim == 1:
+            domain = [domain]
+
+        if domain is None or domain is _not_found_:
+            domain = Expression.guess_dims(holder, **kwargs)
+
+        return domain
+
+    def __init__(self, op, *args, domain=_not_found_, **kwargs) -> None:
         """
         Parameters
 
@@ -120,6 +138,7 @@ class Expression(HTreeNode):
             super().__init__(**kwargs)
             self._op = op
             self._children = args
+            self._domain = domain
 
         elif is_scalar(op):  # 常量/标量表达式
             match op:
@@ -131,7 +150,7 @@ class Expression(HTreeNode):
                     TP = Scalar
 
             self.__class__ = TP
-            TP.__init__(self, op, *args, **kwargs)
+            TP.__init__(self, op, *args, domain=domain, **kwargs)
 
         elif isinstance(op, array_type):  # 构建插值函数
             from .Function import Function
@@ -139,17 +158,19 @@ class Expression(HTreeNode):
             TP = Function
 
             self.__class__ = TP
-            TP.__init__(self, op, *args, **kwargs)
+            TP.__init__(self, op, *args, domain=domain, **kwargs)
 
         else:  # 一般表达式
             super().__init__(**kwargs)
             self._op = op
             self._children = args
+            self._domain = domain
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
         other: Expression = super().__copy__()
         other._op = copy(self._op)
+        other._domain = self._domain
         other._children = copy(self._children)
         return other
 
@@ -157,46 +178,29 @@ class Expression(HTreeNode):
         logger.debug(f"TODO: __serialize__ {self}")
         return None
 
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
-        """
-        重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
-        例如：
-            >>> import numpy as np
-            >>> import spdm
-            >>> x = spdm.data.Expression(np.sin)
-            >>> y = spdm.data.Expression(np.cos)
-            >>> z = x + y
-            >>> z
-            <Expression   op="add" />
-            >>> z(0.0)
-            1.0
-        """
-        if method != "__call__" or len(kwargs) > 0:
-            return Expression(Functor(ufunc, method=method, **kwargs), *args)
-        else:
-            return Expression(ufunc, *args)
-
-    def __array__(self) -> ArrayType:
-        """在定义域上计算表达式。"""
-
-        if self._cache is None or self._cache is _not_found_:
-            x = self.domain.points if self.domain is not None else []
-            self._cache = self.__eval__(*self._eval_children(*x))
-
-        return self._cache
-
     @property
-    def domain(self) -> DomainBase | None:
+    def domain(self) -> DomainBase:
         """返回表达式的定义域"""
 
-        for child in self._children:
-            domain = getattr(child, "domain", None)
-            if domain is not None:
-                break
-        else:
-            domain = None
+        if self._domain is None or self._domain is _not_found_:
+            self._domain = Expression.guess_domain(self)
 
-        return domain
+        if self._domain is None or self._domain is _not_found_:
+            for child in self._children:
+                domain = getattr(child, "domain", _not_found_)
+                if domain is not _not_found_:
+                    break
+                elif isinstance(domain, DomainBase) and not domain.is_full:
+                    break
+            else:
+                domain = _not_found_
+
+            self._domain = domain
+
+        if self._domain is not _not_found_ and not isinstance(self._domain, DomainBase):
+            self._domain = self.__class__.Domain(self._domain)
+
+        return self._domain
 
     @property
     def has_children(self) -> bool:
@@ -209,18 +213,12 @@ class Expression(HTreeNode):
 
     @property
     def __label__(self) -> str:
-        label = self._metadata.get("label", super().__label__)
-        if label is _not_found_:
-            label = self._render_latex_()
-        return str(label)
+        label = super().__label__
+        if "\\" not in label:
+            label = rf"\text{{{label}}}"
+        return label
 
-    def __str__(self) -> str:
-        return self.__label__ or self.__name__
-
-    def __repr__(self) -> str:
-        return self._render_latex_()
-
-    def _render_latex_(self, show=False) -> str:
+    def _render_latex_(self) -> str:
         vargs = []
         for expr in self._children:
             if isinstance(expr, (bool, int, float, complex)):
@@ -233,7 +231,7 @@ class Expression(HTreeNode):
                 else:
                     res = f"{expr.dtype}[{expr.shape}]"
             elif isinstance(expr, Variable):
-                res = f"{{{expr.__label__}}}"
+                res = f"{expr.__label__}"
             elif isinstance(expr, Expression):
                 res = expr._render_latex_()
             elif isinstance(expr, np.ufunc):
@@ -243,7 +241,7 @@ class Expression(HTreeNode):
             vargs.append(res)
 
         if isinstance(self._op, np.ufunc):
-            op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__class__.__name__)
+            op_tag = EXPR_OP_TAG.get(self._op.__name__, self._op.__name__)
 
             if self._op.nin == 1:
                 res = rf"{op_tag}{{{vargs[0]}}}"
@@ -270,10 +268,7 @@ class Expression(HTreeNode):
 
             res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
 
-        if show:
-            return rf"$${res}$$"
-        else:
-            return res
+        return res
 
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
@@ -281,37 +276,73 @@ class Expression(HTreeNode):
         # if label is not None or self._op is None:
         #     return rf"$${label}$$"
         # else:
-        return self._render_latex_(show=True)
+        text = self._render_latex_()
+        return f"$${text}$$"
 
     @property
     def dtype(self):
-        return self._type_hint()
-
-    def _type_hint(self, *args):
-        """TODO:获取表达式的类型"""
         return float
 
-    def __eval__(self, *args, **kwargs) -> typing.Any:
-        if self._op is None:
-            res = np.nan
-
-        elif callable(self._op):
-            res = np.nan
-
-            with warnings.catch_warnings():
-                warnings.filterwarnings("error", category=RuntimeWarning)
-                try:
-                    res = self._op(*args, **kwargs)
-                except RuntimeWarning:
-                    logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
-
-        elif isinstance(self._op, numeric_type):
-            res = self._op
-
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
+        """
+        重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
+        例如：
+            >>> import numpy as np
+            >>> import spdm
+            >>> x = spdm.data.Expression(np.sin)
+            >>> y = spdm.data.Expression(np.cos)
+            >>> z = x + y
+            >>> z
+            <Expression   op="add" />
+            >>> z(0.0)
+            1.0
+        """
+        if method != "__call__" or len(kwargs) > 0:
+            return Expression(Functor(ufunc, method=method, **kwargs), *args)
         else:
-            raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
+            return Expression(ufunc, *args)
 
-        return res
+    def __array__(self) -> array_type:
+        """在定义域上计算表达式，返回数组。"""
+
+        if self._cache is None or self._cache is _not_found_:
+            x = self.domain.points
+
+            if len(x) == 0:
+                raise RuntimeError(f"Empty domain, __array__ fail!")
+
+            self._cache = self.__call__(*x)
+
+        return self._cache
+
+    def __ppoly__(self):
+        """表达式的多项式近似
+
+        Raises:
+            RuntimeError: 当 domain 为空时报错
+
+        Returns:
+            多项式: 多项式
+        """
+        if getattr(self, "_ppoly", _not_found_) is _not_found_:
+            self._ppoly = self.domain.interpolate(self.__array__())
+
+        return self._ppoly
+
+    def _eval_children(self, *args, **kwargs):
+        new_children = []
+        for child in self._children:
+            try:
+                if callable(child) and len(args) + len(kwargs) > 0:
+                    value = child(*args, **kwargs)
+                else:
+                    value = np.asarray(child)
+
+            except Exception as error:
+                raise RuntimeError(f"Failure to calculate  child {child} !") from error
+            else:
+                new_children.append(value)
+        return new_children
 
     def __call__(self, *args: _T, **kwargs) -> _T:
         """
@@ -337,52 +368,37 @@ class Expression(HTreeNode):
         elif any([callable(val) for val in args]):
             return Expression(self, *args, **kwargs)
 
-        elif len(self._children) > 0:
-            return self.__eval__(*self._eval_children(*args, **kwargs))
+        elif self._op is None:
+            return np.nan
 
-        else:
-            return self.__eval__(*args, **kwargs)
+        elif not callable(self._op):
+            raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
 
-    def _eval_children(self, *args, **kwargs):
-        new_children = []
-        for child in self._children:
+        args = self._eval_children(*args, **kwargs)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=RuntimeWarning)
             try:
-                if callable(child) and len(args) + len(kwargs) > 0:
-                    value = child(*args, **kwargs)
-                else:
-                    value = np.asarray(child)
-
-            except Exception as error:
-                raise RuntimeError(f"Failure to calculate  child {child} !") from error
-            else:
-                new_children.append(value)
-        return new_children
-
-    def fetch(self, *args, _parent=None, **kwargs):
-        res = self.__call__(*args, **kwargs)
-
-        if res is self:
-            res = self.__copy__()
-
-        if isinstance(res, HTreeNode):
-            res._parent = _parent
+                res = self._op(*args, **kwargs)
+            except RuntimeWarning:
+                logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
 
         return res
 
-    def integral(self, *args, **kwargs) -> float:
-        raise NotImplementedError()
+    def derivative(self, order: int, *args, **kwargs) -> Derivative:
+        return Derivative(self, *args, order=order, **kwargs)
 
-    def derivative(self, order: int, *args, **kwargs) -> Derivative | Expression:
-        return Derivative(self, *args, order=order, **kwargs) if order != 0 else self
+    def antiderivative(self, order: int, *args, **kwargs) -> Antiderivative:
+        return Antiderivative(self, *args, order=order, **kwargs)
 
-    def antiderivative(self, order: int, *args, **kwargs) -> Antiderivative | Expression:
-        return Antiderivative(self, *args, order=order, **kwargs) if order != 0 else self
+    def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> PartialDerivative:
+        return PartialDerivative(self, *args, order=order, **kwargs)
 
-    def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> PartialDerivative | Expression:
-        return PartialDerivative(order, self, *args, **kwargs) if order is not None and len(order) > 0 else self
-
-    def pd(self, *order, **kwargs) -> PartialDerivative | Expression:
+    def pd(self, *order, **kwargs) -> PartialDerivative:
         return self.partial_derivative(order, **kwargs)
+
+    def integral(self, *args, **kwargs) -> float:
+        raise NotImplementedError(f"")
 
     @property
     def d(self) -> Expression:
@@ -406,6 +422,17 @@ class Expression(HTreeNode):
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
         raise NotImplementedError(f"TODO: find_roots")
+
+    def fetch(self, *args, _parent=None, **kwargs):
+        res = self.__call__(*args, **kwargs)
+
+        if res is self:
+            res = self.__copy__()
+
+        if isinstance(res, HTreeNode):
+            res._parent = _parent
+
+        return res
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     )
@@ -703,60 +730,56 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, expr: Expression, *args, order=1, **kwargs):
+    def __init__(self, *args, order=1, **kwargs):
         super().__init__(None, *args, **kwargs)
         self._order = order
-        self._expr = expr
 
     @property
     def order(self) -> int | None:
         return self._order
 
-    @property
-    def domain(self) -> DomainBase:
-        return self._expr.domain
-
     def _render_latex_(self) -> str:
-        if self._order == 0:
-            return self._expr._render_latex_()
-        elif self._order == 1:
-            return f"d{self._expr._render_latex_()}"
-        elif self._order > 1:
-            return rf"d_{{\left[{self._order}\right]}}{self._expr._render_latex_()}"
-        elif self._order < 0:
-            return rf"\int_{{\left[{self._order}\right]}}{self._expr._render_latex_()}"
+        expr: Expression = self._children[0]
+        match self._order:
+            case 0:
+                return expr._render_latex_()
+            case 1:
+                return f"d{expr._render_latex_()}"
+            case -1:
+                return rf"\int \left({expr._render_latex_()} \right)"
+            case -2:
+                return rf"\iint \left({expr._render_latex_()} \right)"
+            case _:
+                if self._order > 1:
+                    return rf"d_{{\left[{self._order}\right]}}{expr._render_latex_()}"
+                elif self._order < 0:
+                    return rf"\intop^{{{-self._order}}}\left({expr._render_latex_()}\right)"
 
-    def __eval__(self, *args, **kwargs):
-        if self._op is None:
-            if isinstance(self._expr, Variable):
-                y = self._expr(*args)
-                x = args[0]
-            elif isinstance(self._expr, Expression):
-                x = self._expr.domain.points[0]
-                y = self._expr(x)
+    def __call__(self, *args: _T, **kwargs) -> _T:
+        if not all([isinstance(a, (array_type, float, int)) for a in args]):
+            return super().__call__(*args, **kwargs)
 
-            self._op = interpolate(x, y).derivative(self._order)
+        if self._op is None or self._op is _not_found_:
+            if len(self._children) == 1 and isinstance(self._children[0], Expression):
+                self._op = self._children[0].__ppoly__().derivative(self._order)
 
-        return super().__eval__(*args, **kwargs)
+            elif len(self._children) > 1:
+                y, *x = self._children
+                ppoly = interpolate(*x, y)
+
+                if self._order > 0:
+                    self._op = ppoly.derivative(self._order)
+                elif self._order < 0:
+                    self._op = ppoly.antiderivative(-self._order)
+                else:
+                    self._op = ppoly
+
+        return self._op(*args, **kwargs)
 
 
 class Antiderivative(Derivative):
-    def __init__(self, expr, order=1, **kwargs):
-        super().__init__(expr, order=-order, **kwargs)
-
-    def _render_latex_(self) -> str:
-        if isinstance(self._order, (list, tuple)):
-            return rf"\int_{{{self._order}}} \left({self._expr._render_latex_()} \right)"
-        elif self._order == 1:
-            return rf"\int \left({self._expr._render_latex_()} \right)"
-        elif self._order == 2:
-            return rf"\iint \left({self._expr._render_latex_()} \right)"
-        else:
-            return rf"\intop^{{{self._order}}}\left({self._expr._render_latex_()}\right)"
-
-    def _eval(self, *args, **kwargs):
-        ppoly, x = self._ppoly(*args, **kwargs)
-        return ppoly.antiderivative(self._order)(x)
+    def __init__(self, *args, order=1, **kwargs):
+        super().__init__(*args, order=-order, **kwargs)
 
 
 def derivative(*args, order=1, **kwargs):
@@ -770,9 +793,6 @@ def integral(*args, order=1, **kwargs):
 class PartialDerivative(Derivative):
     def __repr__(self) -> str:
         return f"d_{{{self._order}}} ({Expression._repr_s(self._expr)})"
-
-    def __functor__(self):
-        return self._expr.derivative(self._order) / self._expr
 
 
 from ..numlib.smooth import smooth as _smooth

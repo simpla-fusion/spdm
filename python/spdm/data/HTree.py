@@ -194,13 +194,13 @@ class HTreeNode:
 
     @property
     def __label__(self) -> str:
-        return ".".join(self.__path__)
+        return self._metadata.get("label", ".".join(self.__path__))
 
     def __str__(self) -> str:
-        return f"<{self.__class__.__name__} name='{self.__label__}' />"
+        return f"<{self.__class__.__name__} name='{'.'.join(self.__path__)}' />"
 
     def __repr__(self) -> str:
-        return self.__label__
+        return ".".join(self.__path__)
 
     @property
     def __root__(self) -> HTree | None:
@@ -567,7 +567,6 @@ class HTree(HTreeNode, typing.Generic[_T]):
 
             if value is not _not_found_ and value is not _undefined_ and value is not None:
                 value = type_convert(_type_hint, value, **kwargs)
-
 
         if isinstance(value, HTreeNode):
             if value._parent is None and _parent is not _not_found_:

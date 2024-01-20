@@ -10,9 +10,11 @@ from copy import deepcopy
 
 from ..utils.typing import ArrayType, array_type
 from ..utils.numeric import float_nan, meshgrid, bitwise_and
+from ..numlib.interpolate import interpolate
 
 from .Functor import Functor
 from .Path import update_tree
+
 
 class DomainBase:
     """函数定义域"""
@@ -20,23 +22,36 @@ class DomainBase:
     _metadata = {"fill_value": float_nan}
 
     def __init__(self, *args, **kwargs) -> None:
-        if len(args) > 0 and isinstance(args[0], dict):
-            kwargs = collections.ChainMap(args[0], kwargs)
-            args = args[1:]
+        if len(args) == 1:
+            if isinstance(args[0], dict):
+                kwargs = collections.ChainMap(args[0], kwargs)
+                args = args[1:]
+            elif isinstance(args[0], (list,tuple)):
+                args = args[0]
 
-        if len(args) > 0 and "dims" in kwargs:
-            raise RuntimeError(f"Redefine dims")
+        if len(args) > 0:
+            self._dims = args
         else:
-            kwargs["dims"] = args
-
-        self._dims = kwargs.pop("dims", [])
+            self._dims = kwargs.pop("dims", [])
 
         if len(kwargs) > 0:
             self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
     @property
+    def label(self) -> str:
+        return self._metadata.get("label", "unnamed")
+
+    @property
     def is_simple(self) -> bool:
         return len(self._dims) > 0
+
+    @property
+    def is_empty(self) -> bool:
+        return len(self._dims) == 0 or any([d == 0 for d in self._dims])
+
+    @property
+    def is_full(self) -> bool:
+        return all([d is None for d in self._dims])
 
     @property
     def dims(self) -> typing.Tuple[ArrayType]:
@@ -137,3 +152,11 @@ class DomainBase:
             res = np.full_like(mask, self.fill_value, dtype=self._type_hint())
             res[mask] = value
         return res
+
+    def interpolate(self, y: array_type, *args, **kwargs):
+        x = self.points
+
+        periods = self._metadata.get("periods", None)
+        extrapolate = self._metadata.get("extrapolate", 0)
+
+        return interpolate(*x, y, periods=periods, extrapolate=extrapolate)
