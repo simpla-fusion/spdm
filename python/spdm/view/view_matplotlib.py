@@ -332,12 +332,9 @@ class MatplotlibView(View):
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)
 
-            if isinstance(y_label, str) and "$" not in y_label:
-                y_label = f"${y_label}$"
-
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
-        canvas[-1].set_xlabel(f"${x_label}$", fontsize=fontsize)
+        canvas[-1].set_xlabel(x_label, fontsize=fontsize)
 
         return self._figure_post(fig, styles=styles, **kwargs)
 

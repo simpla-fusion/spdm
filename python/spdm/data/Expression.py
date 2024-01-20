@@ -198,7 +198,10 @@ class Expression(HTreeNode):
 
             self._domain = domain
 
-        if self._domain is not _not_found_ and not isinstance(self._domain, DomainBase):
+        if self._domain is _not_found_:
+            raise RuntimeError(f"Can not get domain!")
+
+        elif not isinstance(self._domain, DomainBase):
             self._domain = self.__class__.Domain(self._domain)
 
         return self._domain
@@ -345,14 +348,18 @@ class Expression(HTreeNode):
     def __eval__(self, *args, **kwargs):
         if not callable(self._op):
             raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
-
+        new_children = self._eval_children(*args, **kwargs)
+        res = np.nan
         with warnings.catch_warnings():
             warnings.filterwarnings("error", category=RuntimeWarning)
             try:
                 # 执行当前节点算符
-                res = self._op(*args, **kwargs)
+                res = self._op(*new_children)
             except RuntimeWarning:
-                logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
+                logger.exception(f"{self._render_latex_()}")
+                # raise RuntimeError((res, args))
+                # res=np.nan_to_num(res,nan=1.0e-33)
+                pass
 
         return res
 
@@ -379,23 +386,7 @@ class Expression(HTreeNode):
             return Expression(self, *args, **kwargs)
 
         else:  # 执行计算
-            new_children = []
-            for child in self._children:
-                try:
-                    if isinstance(child, Expression):
-                        value = child(*args, **kwargs)
-                    else:
-                        value = np.asarray(child)
-
-                except Exception as error:
-                    raise RuntimeError(f"Failure to calculate  child {child} !") from error
-                else:
-                    new_children.append(value)
-
-            if len(new_children) == 0:
-                new_children = args
-
-            return self.__eval__(*new_children)
+            return self.__eval__(*args, **kwargs)
 
     def derivative(self, order: int, *args, **kwargs) -> Derivative:
         return Derivative(self, *args, order=order, **kwargs)
@@ -547,10 +538,10 @@ class Variable(Expression):
 
     """
 
-    def __init__(self, idx: int | str, name: str = None, **kwargs) -> None:
+    def __init__(self, idx: int | str, name: str = None, domain=None, **kwargs) -> None:
         if name is None:
             name = idx if isinstance(idx, str) else f"_{idx}"
-        super().__init__(None, name=name, **kwargs)
+        super().__init__(None, name=name, domain=domain, **kwargs)
         self._idx = idx
 
     def __copy__(self) -> Scalar:
@@ -742,13 +733,22 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, expr: Expression | array_type, *args, order=1, **kwargs):
-        super().__init__(None, **kwargs)
-        self._order = order
-        if isinstance(expr, (array_type, Variable)):
-            self._expr = Expression(*args, expr, **kwargs)
+    def __init__(self, *args, order=1, **kwargs):
+        if len(args) == 0:
+            raise RuntimeError(f"Need at least one position argument!")
+        elif len(args) == 1:
+            expr = args[0]
+            args = []
+        elif all([isinstance(a, array_type) for a in args]):
+            y, *x = args
+            expr = Expression(*x, y)
+            args = []
         else:
-            self._expr = expr
+            expr = None
+        super().__init__(None, *args, **kwargs)
+
+        self._order = order
+        self._expr = expr
 
     @property
     def order(self) -> int | None:
@@ -763,24 +763,49 @@ class Derivative(Expression):
 
     def _render_latex_(self) -> str:
         expr: Expression = self._expr
+
+        if expr is None or expr is _not_found_:
+            return self.__label__
+
         match self._order:
             case 0:
-                return expr._render_latex_()
+                text = expr._render_latex_()
             case 1:
-                return f"d{expr._render_latex_()}"
+                text = f"d{expr._render_latex_()}"
             case -1:
-                return rf"\int \left({expr._render_latex_()} \right)"
+                text = rf"\int \left({expr._render_latex_()} \right)"
             case -2:
-                return rf"\iint \left({expr._render_latex_()} \right)"
+                text = rf"\iint \left({expr._render_latex_()} \right)"
             case _:
                 if self._order > 1:
-                    return rf"d_{{\left[{self._order}\right]}}{expr._render_latex_()}"
+                    text = rf"d_{{\left[{self._order}\right]}}{expr._render_latex_()}"
                 elif self._order < 0:
-                    return rf"\intop^{{{-self._order}}}\left({expr._render_latex_()}\right)"
+                    text = rf"\intop^{{{-self._order}}}\left({expr._render_latex_()}\right)"
+                else:
+                    text = expr._render_latex_()
+        return text
 
     def __eval__(self, *args: _T, **kwargs) -> _T:
-        if self._op is None or self._op is _not_found_:
-            ppoly = self._expr.__ppoly__()
+        if len(self._children) > 0:
+            y, *x = self._eval_children(*args)
+            ppoly = interpolate(*x, y, **kwargs)
+
+            if self._order > 0:
+                res = ppoly.derivative(self._order)(*x)
+            elif self._order < 0:
+                res = ppoly.antiderivative(-self._order)(*x)
+            else:
+                res = ppoly(*x)
+
+            return res
+
+        elif self._op is None or self._op is _not_found_:
+            try:
+                ppoly = self._expr.__ppoly__()
+            except Exception:
+                y = self._expr(*args)
+                x = args
+                ppoly = interpolate(*x, y)
 
             if self._order > 0:
                 self._op = ppoly.derivative(self._order)

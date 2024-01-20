@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.data.Expression import Expression, Variable, derivative
+from spdm.data.Expression import Expression, Variable, derivative, antiderivative
 from spdm.data.Function import Function
 from spdm.utils.logger import logger
 
@@ -60,7 +60,13 @@ class TestFunction(unittest.TestCase):
 
         self.assertTrue(np.allclose(y2, fun(x2)))
 
+    def test_antiderivative(self):
+        _x = Variable(0, "x")
+        sinx = derivative(np.sin(_x), _x)
+        cosx = np.cos(_x)
 
+        x = np.linspace(0, TWOPI, 128)
+        self.assertTrue(np.allclose(sinx(x), cosx(x)))
 
 
 if __name__ == "__main__":
