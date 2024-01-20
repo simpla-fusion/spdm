@@ -214,8 +214,8 @@ class Expression(HTreeNode):
     @property
     def __label__(self) -> str:
         label = super().__label__
-        if "\\" not in label:
-            label = rf"\text{{{label}}}"
+        # if "\\" not in label:
+        #     label = rf"${{{label}}}$"
         return label
 
     def _render_latex_(self) -> str:
@@ -344,6 +344,21 @@ class Expression(HTreeNode):
                 new_children.append(value)
         return new_children
 
+    def __eval__(self, *args, **kwargs):
+        if not callable(self._op):
+            raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
+
+        args = self._eval_children(*args, **kwargs)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=RuntimeWarning)
+            try:
+                res = self._op(*args, **kwargs)
+            except RuntimeWarning:
+                logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
+
+        return res
+
     def __call__(self, *args: _T, **kwargs) -> _T:
         """
         重载函数调用运算符，用于计算表达式的值
@@ -360,30 +375,14 @@ class Expression(HTreeNode):
         kwargs : typing.Any
             命名参数，用于传递给运算符的参数
         """
-        if len(args) == 0:
-            if len(kwargs) > 0:
-                logger.warning(f"ignore {kwargs}")
+        if len(args) + len(kwargs) == 0:  # 自身引用
             return self
 
-        elif any([callable(val) for val in args]):
+        elif any([callable(val) for val in args]):  # 符合函数
             return Expression(self, *args, **kwargs)
 
-        elif self._op is None:
-            return np.nan
-
-        elif not callable(self._op):
-            raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
-
-        args = self._eval_children(*args, **kwargs)
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error", category=RuntimeWarning)
-            try:
-                res = self._op(*args, **kwargs)
-            except RuntimeWarning:
-                logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
-
-        return res
+        else:
+            return self.__eval__(*args, **kwargs)
 
     def derivative(self, order: int, *args, **kwargs) -> Derivative:
         return Derivative(self, *args, order=order, **kwargs)
@@ -755,10 +754,7 @@ class Derivative(Expression):
                 elif self._order < 0:
                     return rf"\intop^{{{-self._order}}}\left({expr._render_latex_()}\right)"
 
-    def __call__(self, *args: _T, **kwargs) -> _T:
-        if not all([isinstance(a, (array_type, float, int)) for a in args]):
-            return super().__call__(*args, **kwargs)
-
+    def __eval__(self, *args: _T, **kwargs) -> _T:
         if self._op is None or self._op is _not_found_:
             if len(self._children) == 1 and isinstance(self._children[0], Expression):
                 self._op = self._children[0].__ppoly__().derivative(self._order)

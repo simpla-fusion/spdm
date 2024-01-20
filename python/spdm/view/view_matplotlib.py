@@ -337,7 +337,7 @@ class MatplotlibView(View):
 
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
-        canvas[-1].set_xlabel(x_label, fontsize=fontsize)
+        canvas[-1].set_xlabel(f"${x_label}$", fontsize=fontsize)
 
         return self._figure_post(fig, styles=styles, **kwargs)
 

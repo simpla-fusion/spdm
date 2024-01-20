@@ -83,7 +83,7 @@ class Function(Expression):
     def __array__(self) -> array_type:
         return self._cache
 
-    def __call__(self, *args, **kwargs):
+    def __eval__(self, *args, **kwargs):
         """
         对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
@@ -103,7 +103,6 @@ class Function(Expression):
         force : bool
             if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
         """
-
         return self.__ppoly__()(*args, **kwargs)
 
     def validate(self, value=None, strict=False) -> bool:
