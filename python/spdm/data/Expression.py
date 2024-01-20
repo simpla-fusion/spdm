@@ -735,6 +735,13 @@ class Derivative(Expression):
     def order(self) -> int | None:
         return self._order
 
+    @property
+    def domain(self) -> DomainBase:
+        domain = super().domain
+        if (domain is None or domain is _not_found_) and isinstance(self._expr, Expression):
+            domain = self._expr.domain
+        return domain
+
     def _render_latex_(self) -> str:
         expr: Expression = self._children[0]
         match self._order:
@@ -777,10 +784,15 @@ class Antiderivative(Derivative):
 
 
 def derivative(*args, order=1, **kwargs):
-    return Derivative(*args, order=order, **kwargs)
+    func = Derivative(*args, order=order, **kwargs)
+    if all([isinstance(d, (array_type, float, int)) for d in args[1:]]):
+        _, *x = args
+        return func(*x)
+    else:
+        return func
 
 
-def integral(*args, order=1, **kwargs):
+def antiderivative(*args, order=1, **kwargs):
     return Antiderivative(*args, order=order, **kwargs)
 
 
