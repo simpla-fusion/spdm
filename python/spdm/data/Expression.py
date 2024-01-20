@@ -215,6 +215,9 @@ class Expression(HTreeNode):
     def __repr__(self) -> str:
         return self._render_latex_()
 
+    def __str__(self) -> str:
+        return self._render_latex_()
+
     def _render_latex_(self) -> str:
         vargs = []
         for expr in self._children:
@@ -270,9 +273,6 @@ class Expression(HTreeNode):
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
         return f"$${self._render_latex_()}$$"
-
-    def __str__(self) -> str:
-        return self._render_latex_()
 
     @property
     def dtype(self):
@@ -346,18 +346,17 @@ class Expression(HTreeNode):
         if not callable(self._op):
             raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
 
-        args = self._eval_children(*args, **kwargs)
-
         with warnings.catch_warnings():
             warnings.filterwarnings("error", category=RuntimeWarning)
             try:
+                # 执行当前节点算符
                 res = self._op(*args, **kwargs)
             except RuntimeWarning:
                 logger.exception(f"{self._render_latex_()} {self._op} ,{args} ")
 
         return res
 
-    def __call__(self, *args: _T, **kwargs) -> _T:
+    def __call__(self, *args, **kwargs) -> Expression | array_type:
         """
         重载函数调用运算符，用于计算表达式的值
 
@@ -373,14 +372,30 @@ class Expression(HTreeNode):
         kwargs : typing.Any
             命名参数，用于传递给运算符的参数
         """
-        if len(args) + len(kwargs) == 0:  # 自身引用
+        if len(args) + len(kwargs) == 0:  # 空调用，返回自身
             return self
 
-        elif any([callable(val) for val in args]):  # 符合函数
+        elif any([isinstance(a, Expression) for a in args]):  #  创建复合函数
             return Expression(self, *args, **kwargs)
 
-        else:
-            return self.__eval__(*args, **kwargs)
+        else:  # 执行计算
+            new_children = []
+            for child in self._children:
+                try:
+                    if isinstance(child, Expression):
+                        value = child(*args, **kwargs)
+                    else:
+                        value = np.asarray(child)
+
+                except Exception as error:
+                    raise RuntimeError(f"Failure to calculate  child {child} !") from error
+                else:
+                    new_children.append(value)
+
+            if len(new_children) == 0:
+                new_children = args
+
+            return self.__eval__(*new_children)
 
     def derivative(self, order: int, *args, **kwargs) -> Derivative:
         return Derivative(self, *args, order=order, **kwargs)
@@ -727,9 +742,13 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, *args, order=1, **kwargs):
-        super().__init__(None, *args, **kwargs)
+    def __init__(self, expr: Expression | array_type, *args, order=1, **kwargs):
+        super().__init__(None, **kwargs)
         self._order = order
+        if isinstance(expr, (array_type, Variable)):
+            self._expr = Expression(*args, expr, **kwargs)
+        else:
+            self._expr = expr
 
     @property
     def order(self) -> int | None:
@@ -743,7 +762,7 @@ class Derivative(Expression):
         return domain
 
     def _render_latex_(self) -> str:
-        expr: Expression = self._children[0]
+        expr: Expression = self._expr
         match self._order:
             case 0:
                 return expr._render_latex_()
@@ -761,19 +780,14 @@ class Derivative(Expression):
 
     def __eval__(self, *args: _T, **kwargs) -> _T:
         if self._op is None or self._op is _not_found_:
-            if len(self._children) == 1 and isinstance(self._children[0], Expression):
-                self._op = self._children[0].__ppoly__().derivative(self._order)
+            ppoly = self._expr.__ppoly__()
 
-            elif len(self._children) > 1:
-                y, *x = self._children
-                ppoly = interpolate(*x, y)
-
-                if self._order > 0:
-                    self._op = ppoly.derivative(self._order)
-                elif self._order < 0:
-                    self._op = ppoly.antiderivative(-self._order)
-                else:
-                    self._op = ppoly
+            if self._order > 0:
+                self._op = ppoly.derivative(self._order)
+            elif self._order < 0:
+                self._op = ppoly.antiderivative(-self._order)
+            else:
+                self._op = ppoly
 
         return self._op(*args, **kwargs)
 
