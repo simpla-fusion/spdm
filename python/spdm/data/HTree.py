@@ -183,7 +183,7 @@ class HTreeNode:
 
     @property
     def __name__(self) -> str:
-        return self._metadata.get("name", None) or self.__class__.__name__
+        return self._metadata.get("name", "unnamed")
 
     @property
     def __path__(self) -> typing.List[str | int]:
@@ -194,7 +194,7 @@ class HTreeNode:
 
     @property
     def __label__(self) -> str:
-        return self._metadata.get("label", ".".join(self.__path__))
+        return self._metadata.get("label", None) or ".".join(self.__path__)
 
     def __str__(self) -> str:
         return f"<{self.__class__.__name__} name='{'.'.join(self.__path__)}' />"
@@ -572,14 +572,16 @@ class HTree(HTreeNode, typing.Generic[_T]):
             if value._parent is None and _parent is not _not_found_:
                 value._parent = _parent
 
-            name = kwargs.pop("name", _not_found_)
-
             if len(kwargs) > 0:
                 value._metadata.update(kwargs)
-            if isinstance(_key, str) and "name" not in self._metadata:
+
+            if isinstance(_key, str):
                 value._metadata["name"] = _key
+
             elif isinstance(_key, int):
                 value._metadata.setdefault("index", _key)
+                if self._metadata.get("name", _not_found_) in (_not_found_, None, "unnamed"):
+                    self._metadata["name"] = str(_key)
 
         return value
 

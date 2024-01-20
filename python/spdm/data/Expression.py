@@ -102,7 +102,8 @@ class Expression(HTreeNode):
             return tuple(coords)
 
     @staticmethod
-    def guess_domain(holder, **kwargs):
+    def guess_domain(obj, **kwargs):
+        holder = obj
         domain = None
         while holder is not _not_found_ and holder is not None:
             domain_pth = getattr(holder, "_metadata", {}).get("domain", None)
@@ -116,7 +117,7 @@ class Expression(HTreeNode):
             domain = [domain]
 
         if domain is None or domain is _not_found_:
-            domain = Expression.guess_dims(holder, **kwargs)
+            domain = Expression.guess_dims(obj, **kwargs)
 
         return domain
 
@@ -211,12 +212,8 @@ class Expression(HTreeNode):
     def empty(self) -> bool:
         return not self.has_children and self._op is None
 
-    @property
-    def __label__(self) -> str:
-        label = super().__label__
-        # if "\\" not in label:
-        #     label = rf"${{{label}}}$"
-        return label
+    def __repr__(self) -> str:
+        return self._render_latex_()
 
     def _render_latex_(self) -> str:
         vargs = []
@@ -254,7 +251,7 @@ class Expression(HTreeNode):
             else:
                 raise RuntimeError(f"Tri-op is not defined!")
 
-        elif (op_tag := self._metadata.get("label", self._metadata.get("name", None))) is not None:
+        elif (op_tag := self._metadata.get("label", None) or self._metadata.get("name", None)) is not None:
             if len(vargs) == 0:
                 res = op_tag
             else:
@@ -272,12 +269,10 @@ class Expression(HTreeNode):
 
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
-        # label = self._metadata.get("label", None) or self.name
-        # if label is not None or self._op is None:
-        #     return rf"$${label}$$"
-        # else:
-        text = self._render_latex_()
-        return f"$${text}$$"
+        return f"$${self._render_latex_()}$$"
+
+    def __str__(self) -> str:
+        return self._render_latex_()
 
     @property
     def dtype(self):
@@ -302,10 +297,13 @@ class Expression(HTreeNode):
         else:
             return Expression(ufunc, *args)
 
-    def __array__(self) -> array_type:
+    def __array__(self, dtype=None) -> array_type:
         """在定义域上计算表达式，返回数组。"""
 
         if self._cache is None or self._cache is _not_found_:
+            if self.domain is None or self.domain is _not_found_:
+                raise RuntimeError(f"Domain is not defined")
+
             x = self.domain.points
 
             if len(x) == 0:
