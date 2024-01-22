@@ -280,6 +280,9 @@ class SpProperty:
                         **self.metadata,
                     )
                 except KeyError as error:
+                    value = _not_found_
+
+                if value is _not_found_ or value is _undefined_:
                     # alias 不改变 _parent
                     value = instance.get(
                         self.alias,  # alias 可以是路径

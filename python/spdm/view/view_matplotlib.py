@@ -299,6 +299,8 @@ class MatplotlibView(View):
             elif not isinstance(sub_styles, dict):
                 raise RuntimeError(f"Unsupport sub_styles {sub_styles}")
 
+            sub_styles = collections.ChainMap(sub_styles, styles)
+
             y_label = sub_styles.get("y_label", None)
 
             if not isinstance(profiles, (list)):
@@ -314,7 +316,7 @@ class MatplotlibView(View):
                 if isinstance(p_styles, str) or p_styles is None:
                     p_styles = {"label": p_styles}
 
-                p_styles = collections.ChainMap(p_styles, sub_styles, styles)
+                p_styles = collections.ChainMap(p_styles, sub_styles)
 
                 try:
                     t_label, t_y_label = self._plot(canvas[idx], x_value, p, x_axis=x_axis, styles=p_styles)
@@ -328,6 +330,12 @@ class MatplotlibView(View):
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
                     else:
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}" ') from error
+
+            if (vline := sub_styles.get("vline", _not_found_)) is not _not_found_:
+                canvas[idx].axvline(**vline)
+
+            if (hline := sub_styles.get("hline", _not_found_)) is not _not_found_:
+                canvas[idx].axhline(**hline)
 
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)

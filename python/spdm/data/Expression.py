@@ -349,17 +349,18 @@ class Expression(HTreeNode):
         if not callable(self._op):
             raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
         new_children = self._eval_children(*args, **kwargs)
-        res = np.nan
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error", category=RuntimeWarning)
-            try:
-                # 执行当前节点算符
-                res = self._op(*new_children)
-            except RuntimeWarning:
-                logger.exception(f"{self._render_latex_()}")
-                # raise RuntimeError((res, args))
-                # res=np.nan_to_num(res,nan=1.0e-33)
-                pass
+        # 执行当前节点算符
+        res = self._op(*new_children)
+        # with warnings.catch_warnings():
+        #     warnings.filterwarnings("error", category=RuntimeWarning)
+        #     try:
+        #         # 执行当前节点算符
+        #         res = self._op(*new_children)
+        #     except RuntimeWarning:
+        #         logger.exception(f"{self._render_latex_()}")
+        #         # raise RuntimeError((res, args))
+        #         # res=np.nan_to_num(res,nan=1.0e-33)
+        #         pass
 
         return res
 

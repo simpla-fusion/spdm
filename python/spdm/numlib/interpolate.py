@@ -18,7 +18,7 @@ from ..utils.typing import array_type
 
 
 class RectInterpolateOp(Functor):
-    def __init__(self, *xy, periods=None, check_nan=False, extrapolate=0, **kwargs) -> None:
+    def __init__(self, *xy, periods=None, check_nan=False, extrapolate=1, **kwargs) -> None:
         super().__init__(None)
 
         if len(xy) == 0:
@@ -76,7 +76,7 @@ class RectInterpolateOp(Functor):
                     x = x[~mark]
 
             try:
-                self._ppoly = InterpolatedUnivariateSpline(x, value, ext=0)  # self._extrapolate
+                self._ppoly = InterpolatedUnivariateSpline(x, value, ext=self._extrapolate)    
             except Exception as error:
                 raise RuntimeError(f"Can not create Interpolator! \n x={x} value={value}") from error
 
