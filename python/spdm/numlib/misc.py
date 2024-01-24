@@ -30,4 +30,5 @@ def array_like(x: np.ndarray, d):
 
 
 def step_function_approx(x, scale=1.0e-2):
-    return 1 / (1 + np.exp(-x / scale))
+    return np.heaviside(x, scale)
+    # return 1 / (1 + np.exp(-x / scale))

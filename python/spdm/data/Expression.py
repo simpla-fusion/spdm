@@ -331,36 +331,42 @@ class Expression(HTreeNode):
         return self._ppoly
 
     def _eval_children(self, *args, **kwargs):
-        new_children = []
-        for child in self._children:
-            try:
-                if callable(child) and len(args) + len(kwargs) > 0:
-                    value = child(*args, **kwargs)
-                else:
-                    value = np.asarray(child)
+        if len(self._children) == 0:
+            return args
+        else:
+            new_children = []
+            for child in self._children:
+                try:
+                    if callable(child) and len(args) + len(kwargs) > 0:
+                        value = child(*args, **kwargs)
+                    else:
+                        value = np.asarray(child)
 
-            except Exception as error:
-                raise RuntimeError(f"Failure to calculate  child {child} !") from error
-            else:
-                new_children.append(value)
-        return new_children
+                except Exception as error:
+                    raise RuntimeError(f"Failure to calculate  child {child} !") from error
+                else:
+                    new_children.append(value)
+            return new_children
 
     def __eval__(self, *args, **kwargs):
         if not callable(self._op):
-            raise RuntimeError(f"Unknown functor { self._op} {type( self._op)}")
+            raise RuntimeError(f"Unknown functor {self._op} {type( self._op)}")
+        
         new_children = self._eval_children(*args, **kwargs)
+
         # 执行当前节点算符
         res = self._op(*new_children)
+
         # with warnings.catch_warnings():
         #     warnings.filterwarnings("error", category=RuntimeWarning)
         #     try:
         #         # 执行当前节点算符
         #         res = self._op(*new_children)
         #     except RuntimeWarning:
-        #         logger.exception(f"{self._render_latex_()}")
+        #         logger.exception(f"{self._render_latex_()} {self._op} {new_children}")
         #         # raise RuntimeError((res, args))
         #         # res=np.nan_to_num(res,nan=1.0e-33)
-        #         pass
+        #         res = np.nan
 
         return res
 

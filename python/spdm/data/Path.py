@@ -1019,8 +1019,9 @@ class Path(list):
                 # 逐级查找上层 _parent, 直到找到
                 while obj is not None and obj is not _not_found_:
                     if not isinstance(obj, collections.abc.Sequence):
-                        obj = Path._do_find(obj, path[idx + 1 :], *args, default_value=_not_found_, **kwargs)
-                        if obj is not _not_found_:
+                        tmp = Path._do_find(obj, path[idx + 1 :], *args, default_value=_not_found_, **kwargs)
+                        if tmp is not _not_found_:
+                            obj=tmp
                             break
                     obj = getattr(obj, "_parent", _not_found_)
                     # Path._do_find(obj, [Path.tags.parent], default_value=_not_found_)
