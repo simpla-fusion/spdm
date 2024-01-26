@@ -351,7 +351,7 @@ class Expression(HTreeNode):
     def __eval__(self, *args, **kwargs):
         if not callable(self._op):
             raise RuntimeError(f"Unknown functor {self._op} {type( self._op)}")
-        
+
         new_children = self._eval_children(*args, **kwargs)
 
         # 执行当前节点算符
@@ -434,13 +434,19 @@ class Expression(HTreeNode):
         raise NotImplementedError(f"TODO: find_roots")
 
     def fetch(self, *args, _parent=None, **kwargs):
-        res = self.__call__(*args, **kwargs)
+        if len(args) + len(kwargs) == 0:
+            if self._cache is not None:
+                return self._cache
+            else:
+                return self.__array__()
+        else:
+            res = self.__call__(*args, **kwargs)
 
-        if res is self:
-            res = self.__copy__()
+            if res is self:
+                res = self.__copy__()
 
-        if isinstance(res, HTreeNode):
-            res._parent = _parent
+            if isinstance(res, HTreeNode):
+                res._parent = _parent
 
         return res
 

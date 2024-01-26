@@ -59,6 +59,39 @@ from ..utils.logger import logger, deprecated
 from ..utils.tags import _not_found_, _undefined_
 
 
+def _copy(obj, *args, **kwargs):
+    if isinstance(obj, dict):
+        return {k: _copy(v, *args, **kwargs) for k, v in obj.items()}
+
+    elif isinstance(obj, list):
+        return [_copy(v, *args, **kwargs) for k, v in obj]
+
+    elif isinstance(obj, SpTree):
+        cache = {}
+
+        for k, attr in inspect.getmembers(obj.__class__, lambda c: isinstance(c, SpProperty)):
+            if attr.getter is None and attr.alias is None:
+                try:
+                    value = getattr(obj, k, _not_found_)
+                except Exception as error:
+                    value = _not_found_
+
+                if value is not _not_found_:
+                    try:
+                        cache[k] = _copy(value, *args, **kwargs)
+                    except Exception as error:
+                        logger.exception(f"{obj} {value}")
+                        raise error
+
+        return cache
+
+    elif isinstance(obj, HTreeNode):
+        return obj.fetch(*args, **kwargs)
+
+    else:
+        return deepcopy(obj)
+
+
 class SpTree(Dict[HTreeNode]):
     """支持 sp_property 的 Dict"""
 
@@ -78,22 +111,22 @@ class SpTree(Dict[HTreeNode]):
         return super()._do_serialize(data, dumper)
 
     def fetch(self, *args, exclude=[], **kwargs) -> Self:
-        if len(args) + len(kwargs) == 0:
-            cache = deepcopy(self._cache)
-        else:
-            cache = {}
+        if len(args) + len(kwargs) == 0:  # FIXME: 在 flush 的时候会有问题，需要 debug
+            return super().fetch()
 
-            for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
-                if k in exclude:
+        cache = {}
+
+        for k, attr in inspect.getmembers(self.__class__, lambda c: isinstance(c, SpProperty)):
+            if k in exclude:
+                continue
+            if attr.getter is None and attr.alias is None:
+                value = getattr(self, k, _not_found_)
+                if value is _not_found_:
                     continue
-                if attr.getter is None and attr.alias is None:
-                    value = getattr(self, k, _not_found_)
-                    if value is _not_found_:
-                        continue
-                    elif isinstance(value, HTreeNode):
-                        cache[k] = value.fetch(*args, **kwargs)
-                    else:
-                        cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
+                elif isinstance(value, HTreeNode):
+                    cache[k] = value.fetch(*args, **kwargs)
+                else:
+                    cache[k] = HTreeNode._do_fetch(value, *args, **kwargs)
 
         return self.__duplicate__(cache, _parent=None)
 
