@@ -339,7 +339,8 @@ class MatplotlibView(View):
 
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)
-
+            if "$" not in y_label:
+                y_label = f"${y_label}$"
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
         canvas[-1].set_xlabel(x_label, fontsize=fontsize)
@@ -397,6 +398,8 @@ class MatplotlibView(View):
 
         if label is False:
             label = None
+        elif "$" not in label:
+            label = f"${label}$"
 
         canvas.plot(x_axis, y_value, **s_styles, label=label)
 

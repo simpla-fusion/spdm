@@ -46,14 +46,14 @@ class Function(Expression):
             * if ext=1  or 'nan', return nan
         """
 
-        if any([x is _not_found_ for x in xy]):
-            raise ValueError(f"Illegal arguments {xy}")
-
+       
         if len(xy) == 1 and isinstance(xy[0], tuple):
             xy = xy[0]
 
         if len(xy) == 0:
             raise RuntimeError(f"illegal x,y {xy} ")
+        elif any([x is _not_found_ for x in xy]):
+            raise ValueError(f"Illegal arguments {xy}")
 
         x = xy[:-1]
         y = xy[-1]

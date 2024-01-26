@@ -71,7 +71,12 @@ class Port:
         return self.fragment.insert(self.node, *args, **kwargs)
 
     def update(self, *args, **kwargs):
-        return self.fragment.update(self.node, *args, **kwargs)
+        if (self.node is _not_found_ or self.node is None) and len(self.fragment) == 0:
+            self.node = args[0]
+            args = args[1:]
+
+        if len(args) + len(kwargs) > 0:
+            self.fragment.update(self.node, *args, **kwargs)
 
     def remove(self, *args, **kwargs):
         return self.fragment.remove(self.node, *args, **kwargs)
@@ -106,7 +111,7 @@ class Ports(Dict[Port]):
                 port.node = port0.node
         return port
 
-    def put(self, key: str, value) -> None:
+    def put(self, key: str, value, *args, **kargs) -> None:
         return self.get(key).update(value)
 
     def __missing__(self, key: str) -> Port:

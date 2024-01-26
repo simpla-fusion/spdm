@@ -82,7 +82,7 @@ class Actor(Pluggable):
     @property
     def output_dir(self) -> str:
         return (
-            self.get("output_dir", None)
+            self.get_cache("output_dir", None)
             or os.getenv("SP_OUTPUT_DIR", None)
             or f"{os.getcwd()}/{SP_LABEL.lower()}_output"
         )
@@ -143,9 +143,12 @@ class Actor(Pluggable):
     def preprocess(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
 
-        inputs = {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], HTreeNode)}
+        for k in [*kwargs.keys()]:
+            if isinstance(kwargs[k], HTreeNode):
+                self.inports[k] = kwargs.pop(k)
+        # inputs = {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], HTreeNode)}
 
-        self.inports.update(inputs)
+        # self.inports.update(inputs)
 
         current = self.time_slice.current
 
