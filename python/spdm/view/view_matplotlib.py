@@ -48,6 +48,10 @@ class MatplotlibView(View):
 
         fig.suptitle(title, fontsize=fontsize)
 
+        fig.align_ylabels()
+
+        fig.tight_layout()
+        
         if signature is None:
             signature = self.signature
 
@@ -128,10 +132,6 @@ class MatplotlibView(View):
 
         width = 1.0 + (new_pos.xmax - pos.xmax)
         height = 1.0 + (new_pos.ymax - pos.ymax)
-
-        fig.align_ylabels()
-
-        fig.tight_layout()
 
         title = title or g_styles.get("title", None)
 
@@ -372,11 +372,11 @@ class MatplotlibView(View):
                 y_label = f"${y_label}$"
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
-        canvas[-1].set_xlabel(x_label, fontsize=fontsize)
+        if isinstance(x_label, str):
+            if "$" not in x_label and "\\" in x_label:
+                x_label = f"${x_label}$"
 
-        fig.align_ylabels()
-
-        fig.tight_layout()
+            canvas[-1].set_xlabel(x_label, fontsize=fontsize)
 
         return self._figure_post(fig, styles=styles, **kwargs)
 

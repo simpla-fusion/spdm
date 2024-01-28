@@ -152,19 +152,26 @@ class AoS(List[_TTree]):
     def _for_each_(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int | str, HTreeNode], None, None]:
         self._sync_cache()
         tag = f"@{Path.id_tag_name}"
-        for idx, v in enumerate(self._cache):
-            if isinstance(v, (dict, HTree)) and (key := Path(tag).get(v, _not_found_)) is not _not_found_:
-                yield idx, self._find_(key, *args, **kwargs)
-            else:
-                yield idx, self._find_(idx, *args, **kwargs)
+        if len(self._cache) > 0:
+            for idx, v in enumerate(self._cache):
+                if isinstance(v, (dict, HTree)) and (key := Path(tag).get(v, _not_found_)) is not _not_found_:
+                    yield idx, self._find_(key, *args, **kwargs)
+                else:
+                    yield idx, self._find_(idx, *args, **kwargs)
+        elif self._entry is not None:
+            for idx, e in self._entry.for_each():
+                if isinstance(e, Entry):
+                    yield idx, self._type_convert(_not_found_, idx, _entry=e)
+                else:
+                    yield idx, self._type_convert(e, idx, _entry=self._entry.child(idx))
 
-            # if self._entry is None:
-            #     _entry = None
-            # elif key is _not_found_ or v is None:
-            #     _entry = self._entry.child(idx)
-            # else:
-            #     _entry = self._entry.child({tag: key})
-            # yield self._type_convert(v, idx, _entry=_entry)
+        # if self._entry is None:
+        #     _entry = None
+        # elif key is _not_found_ or v is None:
+        #     _entry = self._entry.child(idx)
+        # else:
+        #     _entry = self._entry.child({tag: key})
+        # yield self._type_convert(v, idx, _entry=_entry)
 
     def fetch(self, *args, _parent=_not_found_, **kwargs) -> Self:
         return self.__duplicate__([HTreeNode._do_fetch(obj, *args, **kwargs) for obj in self], _parent=_parent)

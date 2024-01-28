@@ -490,6 +490,9 @@ class HTree(HTreeNode, typing.Generic[_T]):
                 self._cache.append(value)
             elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableSequence):
                 self._cache = Path._do_update(self._cache, key, value)
+            elif isinstance(key, int) and key <= len(self._cache):
+                self._cache.extend([_not_found_] * (key - len(self._cache) + 1))
+                self._cache[key] = value
             else:
                 self._cache[key] = value
 
@@ -649,6 +652,8 @@ class List(HTree[_T]):
         super().__init__(*args, **kwargs)
         if self._cache is _not_found_:
             self._cache = []
+        elif not isinstance(self._cache, list):
+            self._cache = [self._cache]
 
     def children(self) -> typing.Generator[_T, None, None]:
         for k, v in self.for_each():
