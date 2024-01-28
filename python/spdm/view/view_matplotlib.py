@@ -32,32 +32,49 @@ class MatplotlibView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _figure_post(self, fig: plt.Figure, title="", output=None, styles={}, transparent=True, **kwargs) -> typing.Any:
+    def _figure_post(
+        self,
+        fig: plt.Figure,
+        title="",
+        output=None,
+        styles={},
+        transparent=True,
+        signature=None,
+        width=1.0,
+        height=1.0,
+        **kwargs,
+    ) -> typing.Any:
         fontsize = styles.get("fontsize", 16)
 
         fig.suptitle(title, fontsize=fontsize)
 
-        fig.align_ylabels()
+        if signature is None:
+            signature = self.signature
 
-        fig.tight_layout()
-
-        pos = fig.gca().get_position()
-        height = pos.ymin + pos.ymax
-        width = pos.xmax
-
-        # width = fig.get_figwidth()
-        # height = fig.get_figheight()
-
-        fig.text(
-            width + 0.01,
-            0.5 * height,
-            self.signature,
-            verticalalignment="center",
-            horizontalalignment="left",
-            fontsize="small",
-            alpha=0.2,
-            rotation="vertical",
-        )
+        if signature is not False:
+            W, H = fig.get_size_inches()
+            if H > 4:
+                fig.text(
+                    width,
+                    0.0,  # 5 * height,
+                    signature,
+                    verticalalignment="bottom",
+                    horizontalalignment="left",
+                    fontsize="small",
+                    alpha=0.2,
+                    rotation="vertical",
+                )
+            else:
+                fig.text(
+                    width,
+                    0.0,
+                    signature,
+                    verticalalignment="bottom",
+                    horizontalalignment="right",
+                    fontsize="small",
+                    alpha=0.2,
+                    # rotation="vertical",
+                )
 
         if output == "svg":
             buf = BytesIO()
@@ -76,7 +93,7 @@ class MatplotlibView(View):
 
         return fig
 
-    def draw(self, geo, *styles, view_point="rz", title=None, **kwargs) -> typing.Any:
+    def draw(self, geo, *styles, view_point="rz", title=None, scaled=False, **kwargs) -> typing.Any:
         fig, canvas = plt.subplots()
 
         geo = self._draw(canvas, geo, *styles, view_point=view_point)
@@ -101,12 +118,24 @@ class MatplotlibView(View):
         else:
             canvas.set_ylabel(r" $Y$ [m]")
 
+        pos = canvas.get_position()
+
         canvas.set_aspect("equal")
+
         canvas.axis("scaled")
+
+        new_pos = canvas.get_position()
+
+        width = 1.0 + (new_pos.xmax - pos.xmax)
+        height = 1.0 + (new_pos.ymax - pos.ymax)
+
+        fig.align_ylabels()
+
+        fig.tight_layout()
 
         title = title or g_styles.get("title", None)
 
-        return self._figure_post(fig, title=title, styles=g_styles, **kwargs)
+        return self._figure_post(fig, title=title, styles=g_styles, width=width, height=height, **kwargs)
 
     def _draw(
         self,
@@ -308,7 +337,7 @@ class MatplotlibView(View):
 
             labels = []
             for p in profiles:
-                if isinstance(p, tuple):
+                if isinstance(p, tuple) and isinstance(p[1], (str, dict)):
                     p, p_styles = p
                 else:
                     p_styles = {}
@@ -344,6 +373,10 @@ class MatplotlibView(View):
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
         canvas[-1].set_xlabel(x_label, fontsize=fontsize)
+
+        fig.align_ylabels()
+
+        fig.tight_layout()
 
         return self._figure_post(fig, styles=styles, **kwargs)
 
@@ -381,6 +414,10 @@ class MatplotlibView(View):
 
         elif hasattr(expr.__class__, "__array__"):
             y_value = expr.__array__()
+
+        elif isinstance(expr, tuple) and len(expr) == 2 and all([isinstance(v, array_type) for v in expr]):
+            x_value, y_value = expr
+
         else:
             y_value = expr
 
@@ -398,7 +435,7 @@ class MatplotlibView(View):
 
         if label is False:
             label = None
-        elif "$" not in label:
+        elif not isinstance(label, str) or "$" not in label:
             label = f"${label}$"
 
         canvas.plot(x_axis, y_value, **s_styles, label=label)

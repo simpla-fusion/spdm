@@ -50,7 +50,7 @@ class View(Pluggable):
 
     @property
     def signature(self) -> str:
-        return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
+        return f"Create by SpDM at {datetime.datetime.now().isoformat()}. AUTHOR: {getpass.getuser().capitalize()}. "
 
     def draw(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
