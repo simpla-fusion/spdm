@@ -51,7 +51,7 @@ class MatplotlibView(View):
         fig.align_ylabels()
 
         fig.tight_layout()
-        
+
         if signature is None:
             signature = self.signature
 
@@ -277,6 +277,8 @@ class MatplotlibView(View):
         x_axis: Expression | np.ndarray | str = None,
         x_label=None,
         styles=_not_found_,
+        width=10,
+        height=8,
         **kwargs,
     ) -> typing.Any:
         styles = update_tree({}, styles, kwargs)
@@ -291,7 +293,9 @@ class MatplotlibView(View):
 
         nprofiles = len(args)
 
-        fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles))
+        height = max(2, height / nprofiles) * nprofiles
+
+        fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True, figsize=(width, height))
 
         if nprofiles == 1:
             canvas = [canvas]
@@ -450,25 +454,18 @@ class MatplotlibView(View):
     #               default_num_of_points=128, fontsize=10, grid=True,
     #               signature=None, title=None, **kwargs):
     #     fontsize = kwargs.get("fontsize", 10)
-
     #     nprofiles = len(obj)
-
     #     fig, canves = plt.subplots(
     #         ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
     #     )
-
     #     self.draw(canves, obj, styles)
-
     #     x_label = kwargs.get("xlabel", "")
-
     #     if len(canves) == 1:
     #         canves[0].set_xlabel(x_label, fontsize=fontsize)
     #     else:
     #         canves[-1].set_xlabel(x_label, fontsize=fontsize)
-
     #     if not isinstance(profile_list, collections.abc.Sequence):
     #         profile_list = [profile_list]
-
     #     if isinstance(x_axis, collections.abc.Sequence) and not isinstance(
     #         x_axis, np.ndarray
     #     ):
@@ -478,7 +475,6 @@ class MatplotlibView(View):
     #         x_axis = [0, 1]
     #         x_label = ""
     #         x_opts = {}
-
     #     if isinstance(x_axis, Function) and x is not None:
     #         x_axis = x_axis(x)
     #     elif x is None and isinstance(x_axis, np.ndarray):
