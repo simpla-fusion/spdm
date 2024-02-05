@@ -206,7 +206,8 @@ def find_contours(psirz: Field, psi, axis=None) -> typing.Generator[typing.Tuple
                     yield psi_val, Point(o_point.r, o_point.z)
                 elif isinstance(surf, Point) and all(np.isclose(surf.points, [o_point.r, o_point.z])):
                     yield psi_val, surf  # raise RuntimeError(f"Can not find surface psi={level}")
-                elif isinstance(surf, Curve) and surf.is_closed and surf.enclose(o_point.r, o_point.z):
+                elif isinstance(surf, Curve):
+
                     # theta_0 = np.arctan2(x_point.r-o_point.r, x_point.z-o_point.z)
                     # theta = ((np.arctan2(_R-o_point.r, _Z-o_point.z)-theta_0)+2.0*scipy.constants.pi) % (2.0*scipy.constants.pi)
                     # surf = surf.remesh(theta)

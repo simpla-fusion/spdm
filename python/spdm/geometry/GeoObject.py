@@ -66,9 +66,7 @@ class GeoObject(Pluggable):
 
     # def _repr_html_(self) -> str:
     #     """Jupyter 通过调用 _repr_html_ 显示对象"""
-
     #     from ..view.View import display
-
     #     return display(self, schema="html")
 
     def _repr_svg_(self) -> str:
@@ -230,7 +228,13 @@ class GeoObjectSet(typing.List[GeoObject]):
         # GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
     def _repr_svg_(self) -> str:
-        return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"
+        """Jupyter 通过调用 _repr_html_ 显示对象"""
+        from ..view.View import display
+
+        return display(self, schema="svg")
+
+    # def __svg__(self) -> str:
+    #     return f"<g >\n" + "\t\n".join([g.__svg__ for g in self if isinstance(g, GeoObject)]) + "</g>"
 
     @property
     def bbox(self) -> BBox:
