@@ -398,9 +398,7 @@ class MatplotlibView(View):
 
         if isinstance(expr, Expression):
             if label is None:
-                label = expr.__label__
-                if "$" not in label:
-                    label = f"${label}$"
+                label = expr.__label__               
             y_value = expr(x_value)
 
         elif isinstance(expr, Signal):
@@ -439,7 +437,7 @@ class MatplotlibView(View):
 
         if label is False:
             label = None
-        elif not isinstance(label, str) or "$" not in label:
+        elif not isinstance(label, str) or ("$" not in label and any(c in label for c in r"\{")):
             label = f"${label}$"
 
         canvas.plot(x_axis, y_value, **s_styles, label=label)
