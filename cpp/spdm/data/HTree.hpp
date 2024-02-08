@@ -1,9 +1,9 @@
 #ifndef SPDB_NODE_H_
 #define SPDB_NODE_H_
-#include "../utility/TypeTraits.h"
-#include "Cursor.h"
-#include "DataBlock.h"
-#include "XPath.h"
+#include "../utils/TypeTraits.hpp"
+#include "Cursor.hpp"
+#include "DataBlock.hpp"
+#include "Path.hpp"
 #include <array>
 #include <complex>
 #include <functional>

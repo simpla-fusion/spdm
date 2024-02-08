@@ -1,7 +1,7 @@
 #ifndef SPDB_ENTRY_PLUGIN_H_
 #define SPDB_ENTRY_PLUGIN_H_
-#include "Entry.h"
-#include "XPath.h"
+#include "Entry.hpp"
+#include "Path.hpp"
 #include <any>
 #include <array>
 #include <complex>
@@ -60,7 +60,7 @@ public:
     {
         return count() == 0;
     }
-    
+
     size_t count() const override
     {
         NOT_IMPLEMENTED;

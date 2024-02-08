@@ -1,10 +1,10 @@
 #ifndef SPDB_ENTRY_H_
 #define SPDB_ENTRY_H_
 #include "../utility/TypeTraits.h"
-#include "Cursor.h"
-#include "DataBlock.h"
-#include "Node.h"
-#include "XPath.h"
+#include "Cursor.hpp"
+#include "DataBlock.hpp"
+#include "Node.hpp"
+#include "Path.hpp"
 #include <array>
 #include <complex>
 #include <functional>
@@ -161,4 +161,4 @@ std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
 } // namespace sp::db
 
-#endif //SP_ENTRY_H_
+#endif // SP_ENTRY_H_
