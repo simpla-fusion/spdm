@@ -6,7 +6,7 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 if __name__ == "__main__":
     from ..util.logger import logger
-    from spdm.data.Profile import Profile, Profiles
+    from spdm.core.Profile import Profile, Profiles
 
     npoints = 100
 

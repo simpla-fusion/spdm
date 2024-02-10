@@ -14,9 +14,9 @@ from lxml.etree import Element as Element
 
 from lxml.etree import fromstring, tostring
 from lxml.etree import parse as parse_xml
-from spdm.data.Entry import Entry
-from spdm.data.File import File
-from spdm.data.Path import Path, PathLike
+from spdm.core.Entry import Entry
+from spdm.core.File import File
+from spdm.core.Path import Path, PathLike
 from spdm.utils.logger import logger
 from spdm.utils.misc import normalize_path, serialize
 from spdm.utils.PathTraverser import PathTraverser

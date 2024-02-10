@@ -4,9 +4,9 @@ import typing
 
 import MDSplus as mds
 import numpy as np
-from spdm.data.Collection import Collection
-from spdm.data.Entry import Entry
-from spdm.data.File import File
+from spdm.core.Collection import Collection
+from spdm.core.Entry import Entry
+from spdm.core.File import File
 from spdm.utils.logger import logger
 from spdm.utils.uri_utils import URITuple
 from spdm.utils.tags import _not_found_

@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from typing_extensions import Self
 
-from spdm.data.HTree import HTree, HTreeNode
+from spdm.core.HTree import HTree, HTreeNode
 from spdm.utils.tags import _not_found_
 
 from .Entry import Entry

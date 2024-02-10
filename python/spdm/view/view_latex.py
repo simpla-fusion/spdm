@@ -1,9 +1,9 @@
 import collections.abc
 import typing
 from io import BytesIO
-from spdm.data.Expression import Expression, Variable
-from spdm.data.Functor import Functor
-from spdm.data.Function import Function
+from spdm.core.Expression import Expression, Variable
+from spdm.core.Functor import Functor
+from spdm.core.Function import Function
 import matplotlib.pyplot as plt
 import numpy as np
 

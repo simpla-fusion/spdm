@@ -2,8 +2,8 @@ import typing
 
 from numpy.typing import ArrayLike, NDArray
 
-from ..data.Container import Container
-from ..data.Function import Function
+from ..core.Container import Container
+from ..core.Function import Function
 from .Mesh import Mesh
 
 

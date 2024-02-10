@@ -7,8 +7,8 @@ from functools import cached_property
 from enum import Enum
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
-from ..data.Domain import DomainBase
-from ..data.Path import update_tree
+from ..core.Domain import DomainBase
+from ..core.Path import update_tree
 
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix

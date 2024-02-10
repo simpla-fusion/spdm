@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 import scipy.constants
 
-from spdm.data.Expression import Variable
-from spdm.data.Field import Field
+from spdm.core.Expression import Variable
+from spdm.core.Field import Field
 from spdm.utils.logger import logger
 
 TWOPI = scipy.constants.pi * 2.0

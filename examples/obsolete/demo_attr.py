@@ -1,5 +1,5 @@
 import functools
-from spdm.data.AttributeTree import attribute
+from spdm.core.AttributeTree import attribute
 from ..util.logger import logger
 
 

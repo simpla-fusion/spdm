@@ -2,10 +2,10 @@ from copy import copy, deepcopy
 
 import numpy as np
 from spdm.utils.logger import logger
-from spdm.data.Dict import Dict
-from spdm.data.HTree import HTree
-from spdm.data.sp_property import sp_property
-from spdm.data.List import List
+from spdm.core.Dict import Dict
+from spdm.core.HTree import HTree
+from spdm.core.sp_property import sp_property
+from spdm.core.List import List
 
 
 # class Foo(Dict[Node]):

@@ -8,7 +8,7 @@ from functools import cached_property
 
 import numpy as np
 
-from ..data.HTree import List
+from ..core.HTree import List
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.typing import ArrayLike, ArrayType, NumericType, ScalarType, array_type, nTupleType, numeric_type

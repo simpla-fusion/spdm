@@ -1,13 +1,13 @@
 
 import os
 
-from spdm.data.AoS import AoS
-from spdm.data.Expression import Expression, Variable
-from spdm.data.Field import Field
-from spdm.data.Function import Function, function_like
-from spdm.data.HTree import List
-from spdm.data.sp_property import sp_property
-from spdm.data.TimeSeries import TimeSeriesAoS
+from spdm.core.AoS import AoS
+from spdm.core.Expression import Expression, Variable
+from spdm.core.Field import Field
+from spdm.core.Function import Function, function_like
+from spdm.core.HTree import List
+from spdm.core.sp_property import sp_property
+from spdm.core.TimeSeries import TimeSeriesAoS
 from spdm.geometry.Curve import Curve
 from spdm.geometry.GeoObject import GeoObject, GeoObjectSet
 from spdm.geometry.Point import Point

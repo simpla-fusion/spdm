@@ -37,8 +37,8 @@ class Expression(HTreeNode):
 
     例如：
         >>> import spdm
-        >>> x = spdm.data.Expression(op=np.sin)
-        >>> y = spdm.data.Expression(op=np.cos)
+        >>> x = spdm.core.Expression(op=np.sin)
+        >>> y = spdm.core.Expression(op=np.cos)
         >>> z = x + y
         >>> z
         <Expression   op="add" />
@@ -287,8 +287,8 @@ class Expression(HTreeNode):
         例如：
             >>> import numpy as np
             >>> import spdm
-            >>> x = spdm.data.Expression(np.sin)
-            >>> y = spdm.data.Expression(np.cos)
+            >>> x = spdm.core.Expression(np.sin)
+            >>> y = spdm.core.Expression(np.cos)
             >>> z = x + y
             >>> z
             <Expression   op="add" />
@@ -541,8 +541,8 @@ class Variable(Expression):
     变量是一种特殊的函数，它的值由上下文决定。
     例如：
     >>> import spdm
-    >>> x = spdm.data.Variable(0,"x")
-    >>> y = spdm.data.Variable(1,"y")
+    >>> x = spdm.core.Variable(0,"x")
+    >>> y = spdm.core.Variable(1,"y")
     >>> z = x + y
     >>> z
     <Expression   op="add" />

@@ -5,7 +5,7 @@ from functools import cached_property
 
 import numpy as np
 
-from ..data.Function import Function
+from ..core.Function import Function
 from ..geometry.BBox import BBox
 from ..geometry.Box import Box
 from ..geometry.Curve import Curve

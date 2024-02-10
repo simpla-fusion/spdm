@@ -10,7 +10,7 @@ import numpy.typing as np_tp
 
 from spdm.utils.typing import array_type
 
-from ..data.Domain import DomainBase
+from ..core.Domain import DomainBase
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix

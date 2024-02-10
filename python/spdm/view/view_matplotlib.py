@@ -4,11 +4,11 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.data.Path import update_tree, merge_tree
-from spdm.data.Expression import Expression
-from spdm.data.Signal import Signal
-from spdm.data.Field import Field
-from spdm.data.Function import Function
+from spdm.core.Path import update_tree, merge_tree
+from spdm.core.Expression import Expression
+from spdm.core.Signal import Signal
+from spdm.core.Field import Field
+from spdm.core.Function import Function
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
 from spdm.geometry.Curve import Curve

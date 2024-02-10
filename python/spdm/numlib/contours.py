@@ -6,8 +6,8 @@ import collections.abc
 import scipy.interpolate
 from skimage import measure
 
-from ..data.Field import Field
-from ..data.Expression import Variable
+from ..core.Field import Field
+from ..core.Expression import Variable
 from ..geometry.Curve import Curve
 from ..geometry.GeoObject import GeoObject
 from ..geometry.Point import Point

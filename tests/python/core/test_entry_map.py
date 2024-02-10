@@ -4,8 +4,8 @@ from logging import log
 
 from spdm.utils.logger import logger
 from spdm.utils.tags import _not_found_
-from spdm.data.Entry import Entry
-from spdm.data.Mapper import MapperPath
+from spdm.core.Entry import Entry
+from spdm.core.Mapper import MapperPath
 
 
 class TestEntryMap(unittest.TestCase):

@@ -12,7 +12,7 @@ from scipy.interpolate import (
     interp2d,
 )
 
-from ..data.Functor import Functor
+from ..core.Functor import Functor
 from ..utils.logger import logger
 from ..utils.typing import array_type
 

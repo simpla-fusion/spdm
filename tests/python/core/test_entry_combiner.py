@@ -1,8 +1,8 @@
 
 from typing import List
-from spdm.data.Query import Query
-from spdm.data.Path import Path
-from spdm.data.Entry import Entry, EntryCombine
+from spdm.core.Query import Query
+from spdm.core.Path import Path
+from spdm.core.Entry import Entry, EntryCombine
 from spdm.utils.tags import _not_found_
 from spdm.utils.logger import logger
 import pathlib

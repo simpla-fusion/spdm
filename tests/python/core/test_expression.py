@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 import scipy.constants
-from spdm.data.Expression import Expression, Piecewise, Variable
+from spdm.core.Expression import Expression, Piecewise, Variable
 from spdm.utils.logger import logger
 
 TWOPI = scipy.constants.pi * 2.0
