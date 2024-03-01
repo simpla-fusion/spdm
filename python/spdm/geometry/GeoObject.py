@@ -214,7 +214,8 @@ class GeoObjectSet(typing.List[GeoObject]):
         rank = kwargs.pop("rank", None)
         ndim = kwargs.pop("ndim", None)
         if rank is None:
-            rank = max([obj.rank for obj in self if isinstance(obj, GeoObject)])
+            ranks = [obj.rank for obj in self if isinstance(obj, GeoObject)]
+            rank = max(ranks) if len(ranks) > 0 else 0
 
         if ndim is None:
             ndim_list = [obj.ndim for obj in self if isinstance(obj, GeoObject)]
