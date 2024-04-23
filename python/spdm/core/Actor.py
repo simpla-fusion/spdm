@@ -1,37 +1,36 @@
 from __future__ import annotations
-import collections.abc
 import tempfile
 import shutil
 import pathlib
 import os
 import typing
-import numpy as np
 import uuid
 import contextlib
-import inspect
 from ..utils.logger import logger
+from ..utils.envs import SP_DEBUG, SP_LABEL
 from ..utils.plugin import Pluggable
-from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
-from ..utils.tags import _not_found_, _undefined_
+from ..view import View as sp_view
 
 from .HTree import HTreeNode
-from .sp_property import SpTree, sp_property, sp_tree
-from .Expression import Expression
 from .TimeSeries import TimeSeriesAoS, TimeSlice
-from .Path import update_tree, as_path, Path
 from .Edge import InPorts, OutPorts
-from .AoS import AoS
+from .sp_property import SpTree, sp_tree
 
 
 @sp_tree
 class Actor(Pluggable):
-    mpi_enabled = False
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Actor and self.__class__.__dispatch_init__(None, self, *args, **kwargs) is not False:
             return
         SpTree.__init__(self, *args, **kwargs)
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
+
+    def _repr_svg_(self):
+        return sp_view.display(self.__geometry__(), output="svg")
+
+    def __geometry__(self):
+        return None
 
     @property
     def tag(self) -> str:
@@ -40,10 +39,6 @@ class Actor(Pluggable):
     @property
     def uid(self) -> uuid.UUID:
         return self._uid
-
-    @property
-    def MPI(self):
-        return SP_MPI
 
     @contextlib.contextmanager
     def working_dir(self, suffix: str = "", prefix="") -> typing.Generator[pathlib.Path, None, None]:
@@ -91,11 +86,12 @@ class Actor(Pluggable):
     """ 时间片序列，保存 Actor 历史状态。
         @note: TimeSeriesAoS 长度为 n(=3) 循环队列。当压入序列的 TimeSlice 数量超出 n 时，会调用 TimeSeriesAoS.__full__(first_slice)  
     """
+
     inports: InPorts
-    """  保存输入的 Edge，记录对其他 Actor 的依赖。 """
+    """ 输入的 Edge，记录对其他 Actor 的依赖。 """
 
     outports: OutPorts
-    """ 保存外链的 Edge，可视为对于引用（reference）的记录"""
+    """ 输出的 Edge，可视为对于引用（reference）的记录"""
 
     @property
     def current(self) -> typing.Type[TimeSlice]:
@@ -156,7 +152,7 @@ class Actor(Pluggable):
 
         return current
 
-    def execute(self, current: typing.Type[TimeSlice], *previous: typing.Type[TimeSlice]) -> typing.Type[TimeSlice]:
+    def execute(self, current: typing.Type[TimeSlice], *args) -> typing.Type[TimeSlice]:
         """根据 inports 和 前序 time slice 更新当前time slice"""
         return current
 
@@ -175,34 +171,11 @@ class Actor(Pluggable):
 
         current = self.preprocess(*args, **kwargs)
 
-        current = self.execute(current)  # , *self.time_slice.previous
+        current = self.execute(current, self.time_slice.previous)
 
         current = self.postprocess(current)
 
-        # current = self.time_slice.current
-
         return current
-
-    def advance(self, *args, dt: float | None = None, time: float | None = None, **kwargs) -> typing.Type[TimeSlice]:
-        """推进 Actor 到下一时间片，向 time_slice 队列中压入新的时间片。"""
-
-        # 保存当前状态
-        self.flush()
-
-        # 确定新的时间戳
-        if time is None and dt is None:
-            raise RuntimeError("time and dt are both None, do nothing")
-        elif time is None and dt is not None:
-            time = self.time + dt
-        elif time is not None and time <= self.time:
-            raise RuntimeError(f"time={time} is less than current time={self.time}, do nothing")
-        elif dt is not None:
-            logger.warning(f"ignore dt={dt} when time={time} is given")
-
-        # 获得新的时间片
-        new_slice = self.time_slice.advance(*args, time=time, **kwargs)
-
-        return new_slice
 
     def flush(self) -> None:
         """保存当前时间片的状态。
@@ -219,3 +192,4 @@ class Actor(Pluggable):
 
     def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         return HTreeNode._do_fetch(self.time_slice.current, *args, **kwargs)
+
