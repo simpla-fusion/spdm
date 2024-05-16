@@ -5,7 +5,7 @@ from ..util.logger import logger
 from spdm.data import connect
 import matplotlib.pyplot as pyplot
 
-from spdm.data.plugins.PluginXML import open_xml
+from spdm.core.plugins.PluginXML import open_xml
 
 if __name__ == '__main__':
 

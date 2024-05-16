@@ -1,3 +1,4 @@
+from __future__ import annotations
 import collections
 import collections.abc
 import pathlib
@@ -5,11 +6,11 @@ import typing
 
 import h5py
 import numpy
-from spdm.utils.tags import _undefined_
-from spdm.data.Entry import Entry
-from spdm.data.File import File
-from spdm.data.Path import Path
+from spdm.core.Entry import Entry
+from spdm.core.File import File
+from spdm.core.Path import Path
 from spdm.utils.logger import logger
+from spdm.utils.tags import _undefined_
 
 SPDM_LIGHTDATA_MAX_LENGTH = 3
 
@@ -57,7 +58,7 @@ def h5_put_value(grp, path, value):
             path = f"__index__{path}"
         # elif not isinstance(path, str):
         #     raise KeyError(path)
-        if path != '' and path in grp.keys():
+        if path != "" and path in grp.keys():
             del grp[path]
 
         if type(value) is list:
@@ -114,26 +115,23 @@ def h5_get_value(obj, path=None, projection=None, default=_undefined_, **kwargs)
             elif p in obj.attrs:
                 obj = obj.attrs[p]
             else:
-                raise KeyError(f"Can not find element at {'/'.join(prefix)} !")
+                raise KeyError(f"Can not search element at {'/'.join(prefix)} !")
 
     if projection is None:
         if isinstance(obj, h5py.Group):
             if obj.attrs.get("__is_list__", False):
                 res = [h5_get_value(obj[k]) for k in obj]
             else:
-                res = {**(h5_get_value(obj.attrs)), **
-                       {k: h5_get_value(obj[k]) for k in obj}}
+                res = {**(h5_get_value(obj.attrs)), **{k: h5_get_value(obj[k]) for k in obj}}
         elif isinstance(obj, h5py.AttributeManager):
-            res = {k: h5_get_value(obj[k])
-                   for k in obj if not k.startswith("__")}
+            res = {k: h5_get_value(obj[k]) for k in obj if not k.startswith("__")}
         elif isinstance(obj, h5py.Dataset):
             res = obj[:]
         else:
             res = obj
     elif isinstance(projection, str):
         if isinstance(obj, h5py.Group):
-            res = h5_get_value(obj.attrs, projection) or h5_get_value(
-                obj.get(projection, None))
+            res = h5_get_value(obj.attrs, projection) or h5_get_value(obj.get(projection, None))
         elif isinstance(obj, h5py.AttributeManager):
             res = h5_get_value(obj.get(projection, None))
 
@@ -141,11 +139,12 @@ def h5_get_value(obj, path=None, projection=None, default=_undefined_, **kwargs)
         if obj.attrs.get("__is_list__", False):
             res = []
         else:
-            res = {**h5_get_value(obj.attrs, projection),
-                   **{k: h5_get_value(obj[k]) for k, v in projection.items() if v > 0 and k in obj}}
+            res = {
+                **h5_get_value(obj.attrs, projection),
+                **{k: h5_get_value(obj[k]) for k, v in projection.items() if v > 0 and k in obj},
+            }
     elif isinstance(obj, h5py.AttributeManager):
-        res = {k: h5_get_value(obj[k])
-               for k, v in projection.items() if v > 0 and k in obj}
+        res = {k: h5_get_value(obj[k]) for k, v in projection.items() if v > 0 and k in obj}
     elif isinstance(obj, h5py.Dataset):
         res = obj[:]
     else:
@@ -160,13 +159,13 @@ def h5_dump(grp):
 
 @File.register(["h5", "hdf5", "HDF5"])
 class HDF5File(File):
-
-    MOD_MAP = {File.Mode.read: "r",
-               File.Mode.read | File.Mode.write: "r+",
-               File.Mode.write: "w-",
-               File.Mode.write | File.Mode.create: "w",
-               File.Mode.read | File.Mode.write | File.Mode.create: "a",
-               }
+    MOD_MAP = {
+        File.Mode.read: "r",
+        File.Mode.read | File.Mode.write: "r+",
+        File.Mode.write: "w-",
+        File.Mode.write | File.Mode.create: "w",
+        File.Mode.read | File.Mode.write | File.Mode.create: "a",
+    }
 
     """
         r       Readonly, file must exist (default)
@@ -176,8 +175,8 @@ class HDF5File(File):
         a       Read/write if exists, create otherwise
     """
 
-    def __init__(self,  *args,  **kwargs):
-        super().__init__(*args,   **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._fid = None
 
     @property
@@ -190,7 +189,7 @@ class HDF5File(File):
 
         try:
             if self._fid is None:
-                self._fid = h5py.File(self.path,  mode=self.mode_str)
+                self._fid = h5py.File(self.path, mode=self.mode_str)
         except OSError as error:
             raise FileExistsError(f"Can not open file {self.path}! {error}")
         else:
@@ -209,7 +208,8 @@ class HDF5File(File):
         return super().close()
 
     @property
-    def entry(self) -> Entry: return H5Entry(self.open())
+    def entry(self) -> Entry:
+        return H5Entry(self.open())
 
     def read(self, lazy=True) -> Entry:
         return H5Entry(self.open())
@@ -220,15 +220,26 @@ class HDF5File(File):
 
 @Entry.register(["h5", "hdf5", "HDF5"])
 class H5Entry(Entry):
+    def __init__(self, uri: str | HDF5File, *args, **kwargs):
+        super().__init__(None, *args, **kwargs)
 
-    def __init__(self, cache:  str | File, *args, **kwargs):
-        if isinstance(cache, str):
-            cache: HDF5File = HDF5File(cache).open()._fid
-        elif isinstance(cache, File):
-            cache = cache._fid
+        if isinstance(uri, str):
+            self._file = HDF5File(uri)
+        elif isinstance(uri, File):
+            self._file = uri
         else:
-            raise TypeError(f"cache must be HDF5File or str, but got {type(cache)}")
-        super().__init__(cache, *args, **kwargs)
+            raise TypeError(f"cache must be HDF5File or str, but got {type(uri)}")
+
+        self._data = self._file._fid
+
+    def __copy_from__(self, other: H5Entry) -> Entry:
+        super().__copy_from__(other)
+        self._file = other._file
+        return self
+
+    @property
+    def is_writable(self) -> bool:
+        return "r" in self._data.is_writable
 
     def copy(self, other):
         if isinstance(other, Entry):
@@ -241,17 +252,18 @@ class H5Entry(Entry):
     # def get(self, path=[], projection=None, *args, **kwargs):
     #     return h5_get_value(self._cache, path, projection=projection)
 
-    def insert(self,  value, *args, **kwargs):
+    def insert(self, value, *args, **kwargs):
         return h5_put_value(self._data, self._path, value, *args, **kwargs)
 
-    def fetch(self,   *args, **kwargs) -> typing.Any:
-        return h5_get_value(self._data, self._path, *args,  **kwargs)
+    def find(self, *args, **kwargs) -> typing.Any:
+        return h5_get_value(self._data, self._path, *args, **kwargs)
 
     def dump(self):
         return h5_dump(self._data)
 
-    def iter(self,  path, *args, **kwargs):
+    def iter(self, path, *args, **kwargs):
         raise NotImplementedError()
+
 
 # class HDF5Collection(FileCollection):
 #     def __init__(self, uri, *args, **kwargs):

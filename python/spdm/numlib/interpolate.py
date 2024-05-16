@@ -1,47 +1,46 @@
-
 import collections.abc
 import typing
 from copy import copy
 
 import numpy as np
-from scipy.interpolate import (InterpolatedUnivariateSpline,
-                               RectBivariateSpline, RegularGridInterpolator,
-                               UnivariateSpline, interp1d, interp2d)
+from scipy.interpolate import (
+    InterpolatedUnivariateSpline,
+    RectBivariateSpline,
+    RegularGridInterpolator,
+    UnivariateSpline,
+    interp1d,
+    interp2d,
+)
 
-from ..data.Functor import Functor
+from ..core.Functor import Functor
 from ..utils.logger import logger
 from ..utils.typing import array_type
 
 
 class RectInterpolateOp(Functor):
-    def __init__(self, value, *dims,
-                 periods=None,
-                 check_nan=True,
-                 extrapolate=0,
-                 **kwargs) -> None:
+    def __init__(self, *xy, periods=None, check_nan=False, extrapolate=1, **kwargs) -> None:
         super().__init__(None)
 
-        if len(dims) == 0:
-            raise RuntimeError(f"Illegal dims={self._dims} ")
+        if len(xy) == 0:
+            raise RuntimeError(f"Illegal dims={xy} ")
 
-        self._value = value
-        self._dims = dims
+        self._value = xy[-1]
+        self._dims = xy[:-1]
         self._periods = periods
         self._opts: dict = kwargs
         self._check_nan = check_nan
         self._extrapolate = extrapolate
-
         self._shape = tuple(len(d) for d in self._dims)
-
-        if isinstance(value, array_type):
-
-            if len(value.shape) > len(self._shape):
-                raise NotImplementedError(
-                    f"TODO: interpolate for rank >1 . {value.shape}!={self._shape}!  func={self.__str__()} ")
-            elif tuple(value.shape) != tuple(self._shape):
-                raise RuntimeError(
-                    f"Function.compile() incorrect value shape {value.shape}!={self._shape}! func={self.__str__()} ")
         self._ppoly = None
+        if isinstance(self._value, array_type) and len(self._value.shape) > 0:
+            if len(self._value.shape) > len(self._shape):
+                raise NotImplementedError(
+                    f"TODO: interpolate for rank >1 . { self._value.shape}!={self._shape}!  {xy} func={self.__str__()} "
+                )
+            elif tuple(self._value.shape) != tuple(self._shape):
+                raise RuntimeError(
+                    f"Function.compile() incorrect value shape { self._value.shape}!={self._shape}! func={self.__str__()} "
+                )
 
     @property
     def ppoly(self):
@@ -54,7 +53,7 @@ class RectInterpolateOp(Functor):
         value = self._value
 
         if callable(value):
-            value = value(*np.meshgrid(*self._dims, indexing='ij'))
+            value = value(*np.meshgrid(*self._dims, indexing="ij"))
 
         if not isinstance(value, array_type) or not np.all(value.shape == self._shape):
             raise TypeError((value))
@@ -72,16 +71,13 @@ class RectInterpolateOp(Functor):
                 if nan_count == len(value):
                     raise RuntimeError(f"value is NaN!")
                 elif nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    # logger.warning(  f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
                     value = value[~mark]
                     x = x[~mark]
 
             try:
-                self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=0)  # self._extrapolate
+                self._ppoly = InterpolatedUnivariateSpline(x, value, ext=self._extrapolate)    
             except Exception as error:
-                logger.debug(x)
-                logger.debug(value)
                 raise RuntimeError(f"Can not create Interpolator! \n x={x} value={value}") from error
 
         elif len(self._dims) == 2:
@@ -90,7 +86,8 @@ class RectInterpolateOp(Functor):
                 nan_count = np.count_nonzero(mark)
                 if nan_count > 0:
                     logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}."
+                    )
                     value[mark] = 0.0
 
             # if isinstance(self.periods, collections.abc.Sequence):
@@ -109,6 +106,8 @@ class RectInterpolateOp(Functor):
             res = self.ppoly(*args, **kwargs, **self._opts)
         except ValueError as e:
             raise RuntimeError(f"{self.__class__.__name__}[{self.__str__()}]") from e
+        except TypeError as e:
+            raise TypeError(f"{args}") from e
 
         if not isinstance(args[0], array_type) or args[0].size == 1:
             return np.squeeze(res, axis=0).item()
@@ -116,7 +115,7 @@ class RectInterpolateOp(Functor):
             return res
 
     def derivative(self, n=1) -> Functor:
-        return Functor(self.ppoly.derivative(n),  **self._opts)
+        return Functor(self.ppoly.derivative(n), **self._opts)
 
     def partial_derivative(self, *d) -> Functor:
         if len(d) > 0:
@@ -131,6 +130,9 @@ class RectInterpolateOp(Functor):
 
 
 def interpolate(*args, type="rectlinear", **kwargs) -> Functor:
-    if type != "rectlinear":
-        raise NotImplementedError(f"type={type}")
-    return RectInterpolateOp(*args, **kwargs)
+    match type:
+        case "rectlinear":
+            res = RectInterpolateOp(*args, **kwargs)
+        case _:
+            raise NotImplementedError(f"type={type}")
+    return res

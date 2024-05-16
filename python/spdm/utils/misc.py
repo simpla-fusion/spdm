@@ -27,7 +27,7 @@ import re
 
 def camel_to_snake(name):
     # name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name)
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
     return name.lower()
 
 
@@ -35,7 +35,7 @@ def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
     if not isinstance(d, np.ndarray):
         d = np.asarray(d)
     d = np.sort(d)
-    tag = np.append(True, np.diff(d)) > np.finfo(float).eps*10
+    tag = np.append(True, np.diff(d)) > np.finfo(float).eps * 10
     rtag = np.logical_and(d >= x_min, d <= x_max)
     rtag = np.logical_or(rtag, np.isclose(d, x_min, rtol=1e-8))
     rtag = np.logical_or(rtag, np.isclose(d, x_max, rtol=1e-8))
@@ -129,7 +129,7 @@ def load_pkg_data(pkgname, path):
 #     return obj
 
 
-def try_put(holder, path,  value):
+def try_put(holder, path, value):
     res = None
     if isinstance(path, str):
         res = getattr(holder.__class__, path, None)
@@ -168,7 +168,7 @@ def normalize_path(path):
     if path is None:
         path = []
     elif isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
     elif not isinstance(path, collections.abc.MutableSequence):
         path = [path]
     return path
@@ -193,10 +193,11 @@ def serialize(d):
         # raise TypeError(f"Can not serialize {type(d)}!")
 
 
-def as_file_fun(func=None,  *f_args, **f_kwargs):
-    """ Function wrapper: Convert  first argument (as file path) to File object
+def as_file_fun(func=None, *f_args, **f_kwargs):
+    """Function wrapper: Convert  first argument (as file path) to File object
     TODO salmon (20190915): specify the position/key of the file path argument
     """
+
     def _decorate(wrapped):
         @functools.wraps(wrapped)
         def _wrapper(fp, *args, **kwargs):
@@ -209,10 +210,10 @@ def as_file_fun(func=None,  *f_args, **f_kwargs):
             elif isinstance(fp, io.IOBase):
                 res = func(fp, *args, **kwargs)
             else:
-                raise TypeError(
-                    f"Can not convert type({type(fp)}) to file-like object!")
+                raise TypeError(f"Can not convert type({type(fp)}) to file-like object!")
 
             return res
+
         return _wrapper
 
     if func is None:
@@ -221,13 +222,15 @@ def as_file_fun(func=None,  *f_args, **f_kwargs):
         return _decorate(func)
 
 
-def as_lazy_object(func,  *f_args, **f_kwargs):
+def as_lazy_object(func, *f_args, **f_kwargs):
     def _decorate(wrapped):
         @functools.wraps(wrapped)
         def _wrapper(*args, **kwargs):
             def fun():
                 return wrapped(*args, **kwargs)
+
             return LazyProxy(fun)
+
         return _wrapper
 
     if func is None:
@@ -248,8 +251,7 @@ def get_username():
 
 
 def _gusses_name(self, name_hint):
-    count = sum(1 for k, v in self._graph.nodes.items()
-                if k == name_hint or k.startswith(f"{name_hint}_"))
+    count = sum(1 for k, v in self._graph.nodes.items() if k == name_hint or k.startswith(f"{name_hint}_"))
     if count > 0:
         name_hint = f"{name_hint}_{count}"
     return name_hint
@@ -273,7 +275,6 @@ def first_not_empty(*args):
 
 
 def guess_class_name(obj):
-
     if not inspect.isclass(obj):
         cls = obj.__class__
         cls_name = getattr(obj, "__orig_class__", None)
@@ -286,9 +287,9 @@ def guess_class_name(obj):
 
 def find_duplicate(l: Sequence, atol=1.0e-8):
     for i, val in enumerate(l[:-1]):
-        idx = np.flatnonzero(np.abs(l[i+1:]-val) < atol)
+        idx = np.flatnonzero(np.abs(l[i + 1 :] - val) < atol)
         if len(idx) > 2:
-            yield idx+i
+            yield idx + i
 
 
 def replace_tokens(value: str, env):
@@ -300,9 +301,9 @@ def replace_tokens(value: str, env):
                 self._data = d
 
         def __getitem__(self, key):
-            value = get_value_by_path(self._data, key.split('.'), _not_found_)
+            value = get_value_by_path(self._data, key.split("."), _not_found_)
             if value is _not_found_:
-                return '{' + key + '}'
+                return "{" + key + "}"
             else:
                 return value
 
@@ -319,13 +320,13 @@ def replace_tokens(value: str, env):
 
 def fetch_request(url: str) -> typing.Dict:
     """
-        根据路径拖回并解析module_file
+    根据路径拖回并解析module_file
     """
     if not isinstance(url, ParseResult):
         url = urlparse(url)
     content = None
 
-    if url.scheme in ['http', 'https']:
+    if url.scheme in ["http", "https"]:
         # path is a uri
         response = requests.get(url)
         if response.status_code == 200:
@@ -333,11 +334,11 @@ def fetch_request(url: str) -> typing.Dict:
             content = yaml.safe_load(response.text)  # parse the response text as yaml
         else:
             raise FileNotFoundError(url)
-    elif url.scheme in ['local', 'file', '']:
+    elif url.scheme in ["local", "file", ""]:
         if not os.path.isfile(url.path):
             raise FileNotFoundError(url.path)
         # file exists
-        with open(url.path, 'r') as file:
+        with open(url.path, "r") as file:
             content = yaml.safe_load(file)  # parse the file content as yaml
     else:
         raise NotImplementedError(url)
@@ -350,21 +351,22 @@ primitive_types = (int, bool, str, float, complex, np.ndarray)
 builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndarray)
 
 
-def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False, sep='_') -> typing.Tuple[typing.Dict, ...]:
-    """ 将 字典 d 根据prefixs进行分组
-     prefix 是一个字符串，或者是一个字符串列表
-     key具有相同prefix的项会被分到一组， (if keep_prefix is True then prefix会被去掉)
-     返回值是一个元组，每元素是分组后的字典，最后一个元素是其他项的字典
+def group_dict_by_prefix(
+    d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False, sep="_"
+) -> typing.Tuple[typing.Dict, ...]:
+    """将 字典 d 根据prefixs进行分组
+    prefix 是一个字符串，或者是一个字符串列表
+    key具有相同prefix的项会被分到一组， (if keep_prefix is True then prefix会被去掉)
+    返回值是一个元组，每元素是分组后的字典，最后一个元素是其他项的字典
     """
 
     if isinstance(prefixes, str):
-        prefixes = prefixes.split(',')
+        prefixes = prefixes.split(",")
 
-    groups = [None]*len(prefixes) + [{}]
+    groups = [None] * len(prefixes) + [{}]
 
     for key, value in d.items():
         for idx, prefix in enumerate(prefixes):
-
             if not key.startswith(prefix):
                 continue
 
@@ -377,13 +379,13 @@ def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List
                     raise ValueError(f"prefix {prefix} is not unique")
             else:
                 if sep is not None:
-                    prefix = prefix+sep
+                    prefix = prefix + sep
 
                 if not key.startswith(prefix):
                     continue
 
                 if not keep_prefix:
-                    key = key[len(prefix):]
+                    key = key[len(prefix) :]
 
                 if groups[idx] is None:
                     groups[idx] = {}
@@ -395,6 +397,26 @@ def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List
         else:
             groups[-1][key] = value
     return tuple(groups)
+
+
+def get_positional_argument_count(function):
+    """
+    获得一个 function 能够接纳的位置参数个数
+
+    Args:
+        function: 要获取的函数
+
+    Returns:
+        位置参数个数
+    """
+
+    import inspect
+
+    signature = inspect.signature(function)
+    positional_only_parameters = [
+        parameter for parameter in signature.parameters if parameter == inspect.Parameter.POSITIONAL_ONLY
+    ]
+    return len(positional_only_parameters)
 
 
 def fun():

@@ -2,12 +2,12 @@ import collections.abc
 import os
 import pprint
 import typing
-from ..data.Expression import Variable
+from ..core.Expression import Variable
 import numpy as np
 import scipy.optimize
 import scipy.ndimage  # for maximum_filter,binary_erosion, generate_binary_structure
 
-from ..data.Field import Field
+from ..core.Field import Field
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, NumericType, ScalarType
 

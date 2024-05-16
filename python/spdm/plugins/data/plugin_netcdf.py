@@ -7,9 +7,9 @@ import netCDF4 as nc
 import numpy as np
 from spdm.utils.logger import logger
 from spdm.utils.tags import _undefined_, _not_found_
-from spdm.data.Entry import Entry
-from spdm.data.File import File
-from spdm.data.Path import Path
+from spdm.core.Entry import Entry
+from spdm.core.File import File
+from spdm.core.Path import Path
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
 
@@ -100,7 +100,7 @@ class NetCDFEntry(Entry):
     def insert(self,  value, *args, **kwargs):
         return nc_put_value(self._data, self._path, value, *args, **kwargs)
 
-    def fetch(self,   *args, **kwargs) -> typing.Any:
+    def find(self,   *args, **kwargs) -> typing.Any:
         return nc_get_value(self._data, self._path, *args, **kwargs)
 
     def dump(self):

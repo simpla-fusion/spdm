@@ -1,7 +1,6 @@
 from __future__ import annotations
 from ..utils.plugin import Pluggable
 from ..utils.logger import logger, SP_DEBUG
-from ..utils.tree_utils import merge_tree_recursive
 
 import collections
 import collections.abc
@@ -46,14 +45,14 @@ class View(Pluggable):
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is View:
-            View.__dispatch_init__(kwargs.pop("type", None), self, *args, **kwargs)
+            View.__dispatch_init__(kwargs.pop("backend", None), self, *args, **kwargs)
             return
 
     @property
     def signature(self) -> str:
-        return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
+        return f"Create by SpDM at {datetime.datetime.now().isoformat()}. AUTHOR: {getpass.getuser().capitalize()}. "
 
-    def render(self, *args, **kwargs):
+    def draw(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
     def plot(self, *args, **kwargs):
@@ -72,7 +71,7 @@ def viewer(backend=None):
     instance = _view_instances.get(backend, None)
 
     if instance is None:
-        instance = _view_instances[backend] = View(type=backend)
+        instance = _view_instances[backend] = View(backend=backend)
 
     return instance
 
@@ -83,12 +82,7 @@ SP_VIEW_BACKEND = "matplotlib"
 def display(*args,   backend=None,  **kwargs):
     """Show an object"""
 
-    return viewer(backend).render(*args,  **kwargs)
-
-
-def profiles(*args,   backend=None, **kwargs):
-    """Show an object"""
-    return viewer(backend=backend).plot(*args,  **kwargs)
+    return viewer(backend).draw(*args,  **kwargs)
 
 
 def plot(*args,   backend=None, **kwargs):

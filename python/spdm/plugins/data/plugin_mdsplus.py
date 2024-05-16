@@ -4,9 +4,9 @@ import typing
 
 import MDSplus as mds
 import numpy as np
-from spdm.data.Collection import Collection
-from spdm.data.Entry import Entry
-from spdm.data.File import File
+from spdm.core.Collection import Collection
+from spdm.core.Entry import Entry
+from spdm.core.File import File
 from spdm.utils.logger import logger
 from spdm.utils.uri_utils import URITuple
 from spdm.utils.tags import _not_found_
@@ -185,24 +185,24 @@ class MDSplusCollection(Collection):
         )
         return MDSplusTree(self.url, fid=fid, mode=mode or "w", **kwargs)
 
-    def find_one(self, predicate, projection=None, only_one=False, **kwargs) -> Entry:
+    def search_one(self, predicate, projection=None, only_one=False, **kwargs) -> Entry:
         fid = self.guess_id(predicate, **kwargs)
         entry = self._mapping(MDSplusTree(self.url, fid=fid, **kwargs).entry)
         if projection is None:
             return entry
         else:
-            return entry.fetch(projection)
+            return entry.find(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()
 
-    # def find_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
+    # def search_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
     #     shot = getitem(predicate, "shot", None) or getitem(predicate, "_id", None)
     #     if shot is not None:
-    #         return MDSplusEntry(self._tree_name, shot, mode="r") .fetch(projection)
+    #         return MDSplusEntry(self._tree_name, shot, mode="r") .find(projection)
     #     else:
     #         for shot in self._foreach_shot():
-    #             res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(
+    #             res = MDSplusEntry(self._tree_name, shot, mode="r").find_if(
     #                 projection, predicate)
     #             if res is not None:
     #                 return res
@@ -215,10 +215,10 @@ class MDSplusCollection(Collection):
     #     for fp in self._path.glob(glob):
     #         yield fp.stem[f_prefix_l:]
 
-    # def find(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
+    # def search(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
 
     #     for shot in self._foreach_shot():
-    #         res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(projection, predicate)
+    #         res = MDSplusEntry(self._tree_name, shot, mode="r").find_if(projection, predicate)
     #         logger.debug(res)
 
     #         if res is not None:
@@ -243,14 +243,14 @@ class MDSplusEntry(Entry):
             raise TypeError(f"cache must be MDSplusEntry or str, but got {type(cache)}")
         super().__init__(cache, *args, **kwargs)
 
-    def fetch(self, request, *args, **kwargs):
+    def find(self, request, *args, **kwargs):
         return self._data.query(request, *args, prefix=self._path, **kwargs)
 
     def update(self, *args, **kwargs):
         return self._data.update(*args, prefix=self._path, **kwargs)
 
-    def find(self, *args, **kwargs):
-        yield from self._data.find(*args, prefix=self._path, **kwargs)
+    def search(self, *args, **kwargs):
+        yield from self._data.search(*args, prefix=self._path, **kwargs)
 
 
 def open_mdstree(tree_name, shot, mode="NORMAL", path=None):
