@@ -38,7 +38,7 @@ extensions = ["sphinx.ext.napoleon",
               "sphinx.ext.graphviz",
               "sphinx.ext.autosectionlabel",
             #   "sphinxcontrib.bibtex",
-              'sphinxcontrib.plantuml',
+              # 'sphinxcontrib.plantuml',
               "recommonmark",
             #   "docxsphinx"
               ]
