@@ -8,7 +8,7 @@ def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
     if not isinstance(d, np.ndarray):
         d = np.asarray(d)
     d = np.sort(d)
-    tag = np.append(True, np.diff(d)) > np.finfo(float).eps*10
+    tag = np.append(True, np.diff(d)) > np.finfo(float).eps * 10
     rtag = np.logical_and(d >= x_min, d <= x_max)
     rtag = np.logical_or(rtag, np.isclose(d, x_min, rtol=1e-8))
     rtag = np.logical_or(rtag, np.isclose(d, x_max, rtol=1e-8))
@@ -27,3 +27,8 @@ def array_like(x: np.ndarray, d):
         return np.zeros_like(x)
     # else:
     #     raise TypeError(type(d))
+
+
+def step_function_approx(x, scale=1.0e-2):
+    return np.heaviside(x, scale)
+    # return 1 / (1 + np.exp(-x / scale))

@@ -8,30 +8,28 @@ from functools import cached_property
 
 import numpy as np
 
-from ..data.HTree import List
+from ..core.HTree import List
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
-from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
-                            array_type, nTupleType, numeric_type)
+from ..utils.typing import ArrayLike, ArrayType, NumericType, ScalarType, array_type, nTupleType, numeric_type
 from .BBox import BBox
 
 
 class GeoObject(Pluggable):
-    """ Geomertic object
+    """Geomertic object
     几何对象，包括点、线、面、体等
 
     TODO:
-        - 目前基于sympy.geometry实现，未来将支持其他几何建模库
         - 支持3D可视化 （Jupyter+？）
 
     """
+
     _plugin_module_path_template = "spdm.geometry.{name}"
     _plugin_registry = {}
 
     @classmethod
     def __dispatch_init__(cls, _geo_type, self, *args, **kwargs) -> None:
-        """
-        """
+        """ """
         if _geo_type is None or len(_geo_type) == 0:
             _geo_type = kwargs.pop("type", None)
 
@@ -46,7 +44,7 @@ class GeoObject(Pluggable):
 
         super().__dispatch_init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndim: int = 0, rank: int = -1,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = 0, rank: int = -1, **kwargs) -> None:
         if self.__class__ is GeoObject:
             GeoObject.__dispatch_init__(None, self, *args, ndim=ndim, rank=rank, **kwargs)
             return
@@ -66,19 +64,34 @@ class GeoObject(Pluggable):
         return other
         # return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
-    def _repr_html_(self) -> str:
+    # def _repr_html_(self) -> str:
+    #     """Jupyter 通过调用 _repr_html_ 显示对象"""
+    #     from ..view.View import display
+    #     return display(self, schema="html")
+
+    def _repr_svg_(self) -> str:
+        """Jupyter 通过调用 _repr_html_ 显示对象"""
+
         from ..view.View import display
-        return display(self, schema="html")
-    """ Jupyter 通过调用 _repr_html_ 显示对象 """
+
+        return display(self, schema="svg")
 
     def __equal__(self, other: GeoObject) -> bool:
-        return isinstance(other, GeoObject) and self.rank == other.rank and self.ndim == other.ndim and self.bbox == other.bbox
+        return (
+            isinstance(other, GeoObject)
+            and self.rank == other.rank
+            and self.ndim == other.ndim
+            and self.bbox == other.bbox
+        )
 
     @property
-    def name(self) -> str: return self._metadata.get("name", "unnamed")
+    def name(self) -> str:
+        return self._metadata.get("name", "unnamed")
 
     @property
-    def rank(self) -> int: return self._rank
+    def rank(self) -> int:
+        return self._rank
+
     """ 几何体（流形）维度  rank <=ndims
 
             0: point
@@ -92,7 +105,9 @@ class GeoObject(Pluggable):
     """
 
     @property
-    def number_of_dimensions(self) -> int: return self._ndim
+    def number_of_dimensions(self) -> int:
+        return self._ndim
+
     """ 几何体所处的空间维度， = 0，1，2，3 ,...
         The dimension of a geometric object, on the other hand, refers to the minimum number of
         coordinates needed to specify any point within it. In general, the rank and dimension of
@@ -103,56 +118,65 @@ class GeoObject(Pluggable):
     """
 
     @property
-    def ndim(self) -> int: return self._ndim
+    def ndim(self) -> int:
+        return self._ndim
+
     """ alias of dimension """
 
     @property
     def boundary(self) -> GeoObject | None:
-        """ boundary of geometry which is a geometry of rank-1 """
+        """boundary of geometry which is a geometry of rank-1"""
         if self.is_closed:
             return None
         else:
             raise NotImplementedError(f"{self.__class__.__name__}.boundary")
 
     @property
-    def is_convex(self) -> bool: return self._metadata.get("convex", True)
+    def is_convex(self) -> bool:
+        return self._metadata.get("convex", True)
+
     """ is convex """
 
     @property
-    def is_closed(self) -> bool: return self._metadata.get("closed", True)
+    def is_closed(self) -> bool:
+        return self._metadata.get("closed", True)
 
     @property
-    def bbox(self) -> BBox: raise NotImplementedError(f"{self.__class__.__name__}.bbox")
+    def bbox(self) -> BBox:
+        raise NotImplementedError(f"{self.__class__.__name__}.bbox")
+
     """ boundary box of geometry [ [...min], [...max] ] """
 
     @property
-    def measure(self) -> float: return self.bbox.measure
+    def measure(self) -> float:
+        return self.bbox.measure
+
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
     def enclose(self, *args) -> bool | array_type:
-        """ Return True if all args are inside the geometry, False otherwise. """
+        """Return True if all args are inside the geometry, False otherwise."""
         return False if not self.is_closed else self.bbox.enclose(*args)
 
     def intersection(self, other: GeoObject) -> typing.List[GeoObject]:
-        """ Return the intersection of self with other. """
+        """Return the intersection of self with other."""
         return [self.bbox.intersection(other.bbox)]
 
     def reflect(self, point0, point1) -> GeoObject:
-        """ reflect  by line"""
+        """reflect  by line"""
         other = copy(self)
         other._metadata["name"] = f"{self.name}_reflect"
         other.bbox.reflect(point0, point1)
         return other
 
     def rotate(self, angle, axis=None) -> GeoObject:
-        """ rotate  by angle and axis"""
+        """rotate  by angle and axis"""
         other = copy(self)
         other._metadata["name"] = f"{self.name}_rotate"
         other.bbox.rotate(angle, axis=axis)
         return other
 
     def scale(self, *s, point=None) -> GeoObject:
-        """ scale self by *s, point """
+        """scale self by *s, point"""
         other = copy(self)
         other._metadata["name"] = f"{self.name}_scale"
         other.bbox.scale(*s, point=point)
@@ -164,7 +188,8 @@ class GeoObject(Pluggable):
         other.bbox.translate(*shift)
         return other
 
-    def trim(self): raise NotImplementedError(f"{self.__class__.__name__}.trim")
+    def trim(self):
+        raise NotImplementedError(f"{self.__class__.__name__}.trim")
 
     @staticmethod
     def _normal_points(*args) -> np.ndarray | typing.List[float]:
@@ -183,14 +208,14 @@ class GeoObject(Pluggable):
 _TG = typing.TypeVar("_TG")
 
 
-class GeoObjectSet(list[GeoObject]):
-
-    def __init__(self,  *args, **kwargs) -> None:
+class GeoObjectSet(typing.List[GeoObject]):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args)
         rank = kwargs.pop("rank", None)
         ndim = kwargs.pop("ndim", None)
         if rank is None:
-            rank = max([obj.rank for obj in self if isinstance(obj, GeoObject)])
+            ranks = [obj.rank for obj in self if isinstance(obj, GeoObject)]
+            rank = max(ranks) if len(ranks) > 0 else 0
 
         if ndim is None:
             ndim_list = [obj.ndim for obj in self if isinstance(obj, GeoObject)]
@@ -200,15 +225,25 @@ class GeoObjectSet(list[GeoObject]):
                 raise RuntimeError(f"Can not get ndim from {ndim_list}")
         self._rank = rank
         self._ndim = ndim
+        self._metadata = kwargs
         # GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
-    def __svg__(self) -> str:
-        return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"
+    def _repr_svg_(self) -> str:
+        """Jupyter 通过调用 _repr_html_ 显示对象"""
+        from ..view.View import display
+
+        return display(self, schema="svg")
+
+    # def __svg__(self) -> str:
+    #     return f"<g >\n" + "\t\n".join([g.__svg__ for g in self if isinstance(g, GeoObject)]) + "</g>"
 
     @property
-    def bbox(self) -> BBox: return np.bitwise_or.reduce([g.bbox for g in self if isinstance(g, GeoObject)])
+    def bbox(self) -> BBox:
+        return np.bitwise_or.reduce([g.bbox for g in self if isinstance(g, GeoObject)])
 
-    def enclose(self, other) -> bool: return all([g.enclose(other) for g in self if isinstance(g, GeoObject)])
+    def enclose(self, other) -> bool:
+        return all([g.enclose(other) for g in self if isinstance(g, GeoObject)])
+
     # class Box(GeoObject):
     #     def __init__(self, *args, **kwargs) -> None:
     #         super().__init__(*args, **kwargs)
@@ -229,7 +264,6 @@ class GeoObjectSet(list[GeoObject]):
 
 
 def as_geo_object(*args, **kwargs) -> GeoObject | GeoObjectSet:
-
     if len(kwargs) > 0 or len(args) != 1:
         return GeoObject(*args, **kwargs)
     elif isinstance(args[0], GeoObject):

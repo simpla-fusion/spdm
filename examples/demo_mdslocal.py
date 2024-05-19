@@ -1,7 +1,7 @@
 import os
 
 from spdm.utils.logger import logger
-from spdm.data.Entry import open_entry
+from spdm.core.Entry import open_entry
 
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 DATA_PATH = "/home/salmon/workspace/fytok_data/"
@@ -24,9 +24,9 @@ if __name__ == '__main__':
 
         entry = open_entry("MDSplus[EAST]:///#70754")
 
-    pf_current = entry.child("pf_active/coil/0/current/data").fetch()
+    pf_current = entry.child("pf_active/coil/0/current/data").find()
 
-    pf_time = entry.child("pf_active/coil/0/current/time").fetch()
+    pf_time = entry.child("pf_active/coil/0/current/time").find()
 
     # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
 

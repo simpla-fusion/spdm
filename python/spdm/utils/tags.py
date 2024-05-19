@@ -10,8 +10,8 @@ class tags(Flag):
 
 _not_found_ = tags.not_found
 
-_next_ = tags.next_
+_undefined_ = tags.undefined
 
-_undefined_ = ...
+_next_ = tags.next_
 
 _empty = tags.empty

@@ -7,10 +7,9 @@ from .Mesh import Mesh
 
 
 class StructuredMesh(Mesh):
-    """
-        StructureMesh
-        ----------------------
-        结构化网格上的点可以表示为长度为n=rank的归一化ntuple，记作 uv，uv_r \in [0,1]
+    """ StructureMesh
+      
+    结构化网格上的点可以表示为长度为n=rank的归一化ntuple，记作 uv，uv_r \in [0,1]
 
     """
 

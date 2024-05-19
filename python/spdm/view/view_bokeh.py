@@ -9,7 +9,7 @@ import jupyter_bokeh as jbk
 import numpy as np
 from bokeh.io import output_notebook
 from bokeh.plotting import figure
-from spdm.data.HTree import HTree
+from spdm.core.HTree import HTree
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
 from spdm.geometry.Curve import Curve
@@ -48,7 +48,7 @@ class BokehView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, obj, **kwargs) -> typing.Any:
+    def draw(self, obj, **kwargs) -> typing.Any:
         """
             Bokeh + Jupyter 生成可交互的widget
         """

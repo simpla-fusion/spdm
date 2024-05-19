@@ -15,15 +15,36 @@ ArrayLike = np_tp.ArrayLike | None
 
 boolean_type = (bool,)
 
-integral_type = (int, np.integer,)
+integral_type = (
+    int,
+    np.integer,
+)
 
-real_type = (float, np.floating,)
+real_type = (
+    float,
+    np.floating,
+)
 
 bitwise_and_reduce = np.bitwise_and.reduce
 
-complex_type = (complex, np.complexfloating,)
+complex_type = (
+    complex,
+    np.complexfloating,
+)
 
-ScalarType = bool | int | float | complex | np.float64 | np.complex64 | np.complex128 | np.integer | np.floating | np.bool_ | None
+ScalarType = (
+    bool
+    | int
+    | float
+    | complex
+    | np.float64
+    | np.complex64
+    | np.complex128
+    | np.integer
+    | np.floating
+    | np.bool_
+    | None
+)
 
 scalar_type = (*boolean_type, *integral_type, *real_type, *complex_type)
 
@@ -31,13 +52,25 @@ ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
 array_type = np.ndarray
 
+
+def array_like(x: array_type, value) -> array_type:
+    if callable(value):
+        return value(x)
+    elif isinstance(value, array_type) and x.size == value.size:
+        return value
+    elif value is _not_found_:
+        return np.full_like(x, 0)
+    else:
+        return np.full_like(x, value)
+
+
 NumericType = ScalarType | ArrayType
 
 numeric_type = (*scalar_type, array_type)
 
 PrimaryType = str | NumericType | Enum
 
-primary_type = (str,  *numeric_type)
+primary_type = (str, *numeric_type)
 
 NativeType = PrimaryType | dict | list
 
@@ -82,11 +115,25 @@ def is_vector(v: typing.Any) -> bool:
 
 
 def is_array(v: typing.Any) -> bool:
-    return (isinstance(v, array_type) and len(v.shape) > 0)
+    return isinstance(v, array_type)
 
 
 def is_numeric(v: typing.Any) -> bool:
     return isinstance(v, numeric_type)
+
+
+def is_int(v: str | int):
+    if isinstance(v, int):
+        return v
+    elif isinstance(v, str):
+        try:
+            v = int(v)
+        except ValueError:
+            return False
+        else:
+            return v
+    else:
+        return False
 
 
 def is_complex(d: typing.Any) -> bool:
@@ -95,6 +142,10 @@ def is_complex(d: typing.Any) -> bool:
 
 def is_real(d: typing.Any) -> bool:
     return not np.iscomplexobj(d)
+
+
+def is_tree(d) -> bool:
+    return isinstance(d, (collections.abc.Mapping, collections.abc.Sequence)) and not isinstance(d, str)
 
 
 # def is_scalar(d: typing.Any) -> bool:
@@ -111,16 +162,16 @@ def as_array(d: typing.Any, *args, **kwargs) -> ArrayType:
         return d
     elif isinstance(d, array_type):
         return d
-    elif hasattr(d, '__array__'):
+    elif hasattr(d, "__array__"):
         return d.__array__()
-    elif hasattr(d.__class__, '__value__'):
-        return np.asarray(d.__value__, *args,  **kwargs)
+    elif hasattr(d.__class__, "_value_"):
+        return np.asarray(d.__value__, *args, **kwargs)
     else:
-        return np.asarray(d, *args,  **kwargs)
+        return np.asarray(d, *args, **kwargs)
 
 
 def normalize_array(value: ArrayLike, *args, **kwargs) -> ArrayType:
-    """ 将 value 转换为 array_type 类型 """
+    """将 value 转换为 array_type 类型"""
     if isinstance(value, array_type) or is_scalar(value):
         pass
     elif value is None or value is _not_found_:
@@ -166,7 +217,7 @@ def as_value(obj: typing.Any) -> HTreeLike:
         return {k: as_value(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return [as_value(v) for v in obj]
-    elif hasattr(obj.__class__, "__value__"):
+    elif hasattr(obj.__class__, "_value_"):
         return obj.__value__
     else:
         return obj
@@ -180,11 +231,11 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
     elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
         return ntuple(*[try_get(d, k) for k in ntuple._fields])
     elif isinstance(d, collections.abc.Mapping):
-        keys = [k.replace('$', 's_') for k in d.keys()]
+        keys = [k.replace("$", "s_") for k in d.keys()]
         values = [convert_to_named_tuple(v) for v in d.values()]
         if not isinstance(ntuple, str):
-            ntuple = "__"+("_".join(keys))
-        ntuple = ntuple.replace('$', '_')
+            ntuple = "__" + ("_".join(keys))
+        ntuple = ntuple.replace("$", "_")
         return collections.namedtuple(ntuple, keys)(*values)
     elif isinstance(d, collections.abc.MutableSequence):
         return [convert_to_named_tuple(v) for v in d]
@@ -194,8 +245,11 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
 
 def get_origin(tp: typing.Any) -> typing.Type:
     """
-        获得 object，Type，typing.Generic 的原始类型
+    获得 object，Type，typing.Generic 的原始类型
     """
+
+    if isinstance(tp, typing.types.UnionType):
+        return get_origin(typing.get_args(tp)[0])
 
     orig_class = typing.get_origin(tp)
 
@@ -220,16 +274,20 @@ def get_origin(tp: typing.Any) -> typing.Type:
     #     return tp
 
 
+def get_orig_bases(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
+    return getattr(tp, "__orig_bases__", tuple([]))
+
+
 def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
     """
-        获得 typing.Generic 类型的 type_hint
-        例如： 若定义泛型类
-            class Foo[typing.Genric[_T]]:
-                pass
-            obj=Foo[int]
-            get_generic_args(obj)
+    获得 typing.Generic 类型的 type_hint
+    例如： 若定义泛型类
+        class Foo[typing.Genric[_T]]:
+            pass
+        obj=Foo[int]
+        get_generic_args(obj)
 
-            >>> int
+        >>> int
 
     """
     if tp is None or tp is _not_found_:
@@ -241,13 +299,17 @@ def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
     elif typing.get_origin(tp) is not None:
         res = typing.get_args(tp)
 
-    elif inspect.isclass(tp):
-        return get_args(getattr(tp, "__orig_bases__", None))
+    elif len(get_orig_bases(tp)) > 0:
+        return sum([get_args(t) for t in get_orig_bases(tp)], tuple())
 
     else:
         return get_args(getattr(tp, "__orig_class__", tp.__class__))
 
     return tuple([t for t in res if t is not None and not isinstance(t, typing.TypeVar)])
+
+
+def get_type(obj):
+    return getattr(obj, "__orig_class__", obj.__class__)
 
 
 def get_type_hint(tp: typing.Type | types.GenericAlias, prop_name: str):
@@ -260,12 +322,18 @@ def get_type_hint(tp: typing.Type | types.GenericAlias, prop_name: str):
 _T = typing.TypeVar("_T")
 
 
-def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
-    """ 判断 obj 是否是 type_hint 的实例,
-        type_hint 可以是 typing.GenericAlias 或者 typing.Type
+def isinstance_generic(obj: typing.Any, type_hint: typing.Type) -> bool:
+    """判断 obj 是否是 type_hint 的实例,
+    type_hint 可以是 typing.GenericAlias 或者 typing.Type
     """
     if type_hint is None:
         return False
+
+    elif type_hint is _not_found_ or type_hint is typing.Any:
+        return True
+
+    elif isinstance(type_hint, typing.types.UnionType):
+        return any([isinstance_generic(obj, tp) for tp in typing.get_args(type_hint)])
 
     elif inspect.isclass(type_hint):
         return isinstance(obj, type_hint)
@@ -274,85 +342,81 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
 
     if inspect.isclass(type_hint) and orig_class is None:
         return isinstance(obj, type_hint)
+
     elif inspect.isclass(type_hint) and obj.__class__ == type_hint:
         return True
+
     elif orig_class is None:
         # raise RuntimeError(type_hint)
         return False
+
     elif not isinstance(obj, orig_class):
         return False
+
     elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:
         return True
+
     elif not hasattr(obj, "__orig_class__"):
         return True
+
     elif type_hint in getattr(obj, "__orig_bases__", []):
         return True
+
     else:
         return False
 
 
-def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typing.Any:
+def type_convert(tp: typing.Type, value: typing.Any, *args, **kwargs) -> typing.Any:
     if value is _not_found_:
-        # raise RuntimeError(f"value is _not_found_")
+        value = kwargs.pop("default_value", _not_found_)
+
+    if tp is None or tp is _not_found_ or tp is typing.Any:
         return value
-    elif _type_hint is None or isinstance_generic(value, _type_hint):
+
+    elif isinstance(tp, typing.types.UnionType):
+        return type_convert(typing.get_args(tp)[0], value, *args, **kwargs)
+
+    elif isinstance_generic(value, tp):
         return value
 
-    if (not inspect.isclass(_type_hint) or not issubclass(_type_hint, (Enum, *primary_type)))\
-            and not dataclasses.is_dataclass(_type_hint):
+    elif tp in (set, list, dict, tuple):
+        return tp(value)
 
-        return _type_hint(value, **kwargs)
-
-    default_value = kwargs.pop("default_value", _not_found_)
-
-    if hasattr(value, "__value__"):
-        value = value.__value__
-
-    if value is _not_found_:
-        value = default_value
-
-    if value is _not_found_:
-        return _not_found_
-
-    origin_class = get_origin(_type_hint)
-
-    if isinstance(value, origin_class):
-        pass
-
-    elif issubclass(origin_class, array_type):
+    elif issubclass(get_origin(tp), array_type):
         value = as_array(value)
 
-    elif _type_hint in primary_type:
-        
-        if hasattr(value, "__value__"):
-            value = value.__value__
+    elif tp in primary_type:
+        value = getattr(value, "__value__", value)
 
-        if value is _not_found_:
-            value = kwargs.pop("default_value", _not_found_)
-
-        if value is not _not_found_ and value is not None:
+        if value is not _not_found_:
             try:
-                tmp = _type_hint(value)
+                tmp = tp(value)
             except Exception as error:
-                raise TypeError(f"Can not convert {value} to {_type_hint}") from error
+                raise TypeError(f"Can not convert {value} to {tp}") from error
             else:
                 value = tmp
 
-    elif dataclasses.is_dataclass(_type_hint):
-        value = as_dataclass(_type_hint, value)
+    elif dataclasses.is_dataclass(tp):
+        value = getattr(value, "__value__", value)
+        value = as_dataclass(tp, value)
 
-    elif issubclass(origin_class, Enum):
-        if hasattr(value, "__value__"):
-            value = value.__value__
+    elif issubclass(get_origin(tp), Enum):
+        value = getattr(value, "__value__", value)
+
         if isinstance(value, collections.abc.Mapping):
-            value = _type_hint[value["name"]]
-        elif isinstance(value, str):
-            value = _type_hint[value]
+            value = tp[value["name"]]
+
+        elif isinstance(value, (int, str)):
+            value = tp[value]
+
         else:
-            raise TypeError(f"Can not convert {value} to {_type_hint}")
+            raise TypeError(f"Can not convert {value} to {tp}")
 
     else:
-        raise TypeError(f"Can not convert {type(value)} to {_type_hint}")
+        try:
+            value = tp(value, *args, **kwargs)
+        except Exception as error:
+            raise TypeError(f"Can not convert {type(value)} to {tp}") from error
 
     return value
 
@@ -365,11 +429,11 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
     elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
         return ntuple(*[try_get(d, k) for k in ntuple._fields])
     elif isinstance(d, collections.abc.Mapping):
-        keys = [k.replace('$', 's_') for k in d.keys()]
+        keys = [k.replace("$", "s_") for k in d.keys()]
         values = [convert_to_named_tuple(v) for v in d.values()]
         if not isinstance(ntuple, str):
-            ntuple = "__"+("_".join(keys))
-        ntuple = ntuple.replace('$', '_')
+            ntuple = "__" + ("_".join(keys))
+        ntuple = ntuple.replace("$", "_")
         return collections.namedtuple(ntuple, keys)(*values)
     elif isinstance(d, collections.abc.MutableSequence):
         return [convert_to_named_tuple(v) for v in d]
@@ -379,7 +443,7 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
 
 def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.ndarray, dict, list]:
     """
-        convert d to native data type str,bool,float, int, dict, list
+    convert d to native data type str,bool,float, int, dict, list
     """
     if isinstance(d, (bool, int, float, str)):
         return d
@@ -396,7 +460,7 @@ def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.
 
 
 def serialize(obj) -> typing.Any:
-    """ 将对象 object serialize 为 native tree结构 （dict,list,np.ndarray,str,bool,int,float)"""
+    """将对象 object serialize 为 native tree结构 （dict,list,np.ndarray,str,bool,int,float)"""
 
     if obj is None or isinstance(obj, primary_type):
         return obj
@@ -407,18 +471,17 @@ def serialize(obj) -> typing.Any:
     elif hasattr(obj, "__serialize__"):
         return obj.__serialize__()
     else:
-        raise TypeError(f'Not support type: {type(obj)}')
+        raise TypeError(f"Not support type: {type(obj)}")
 
 
 def dump(obj) -> typing.Any:
-
     if obj is None or isinstance(obj, primary_type):
         return obj
     elif isinstance(obj, collections.abc.Mapping):
         return {dump(k): dump(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence):
         return [dump(v) for v in obj]
-    elif hasattr(obj, "__value__"):
+    elif hasattr(obj, "_value_"):
         return dump(obj.__value__)
     else:
-        raise TypeError(f'Not support type: {type(obj)}')
+        raise TypeError(f"Not support type: {type(obj)}")

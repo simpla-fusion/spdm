@@ -11,13 +11,13 @@ from .typing import primary_type
 
 class DefaultDict(dict):
     """
-        This code creates a dictionary that can have a default value for
-        keys that are not yet in the dictionary. It creates a dictionary that inherits
-        from the built-in dictionary class. It overrides the __missing__ method to
-        return a default value if the key is not in the dictionary. It uses a private
-        variable, _factory, that is set to the default factory function. It uses the default
-        factory function to generate the default value for the key. It sets the default value
-        for the key with the __setitem__ method. It returns the default value.
+    This code creates a dictionary that can have a default value for
+    keys that are not yet in the dictionary. It creates a dictionary that inherits
+    from the built-in dictionary class. It overrides the __missing__ method to
+    return a default value if the key is not in the dictionary. It uses a private
+    variable, _factory, that is set to the default factory function. It uses the default
+    factory function to generate the default value for the key. It sets the default value
+    for the key with the __setitem__ method. It returns the default value.
     """
 
     def __init__(self, default_factory, *args, **kwargs):
@@ -26,73 +26,132 @@ class DefaultDict(dict):
 
     def __missing__(self, k):
         v = self._factory(k)
-        self.__setitem__(k,  v)
+        self.__setitem__(k, v)
         return v
 
 
-def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
-    """ 递归合并两个 Hierarchical Tree """
-    if len(args) > 0:
-        return merge_tree_recursive(
-            merge_tree_recursive(first, second, level=level, in_place=in_place, append=append),
-            *args, level=level, in_place=in_place, append=append)
-
-    if second is None or second is _not_found_ or level == 0:
-        return first
-    elif first is None or first is _not_found_:
-        return second
-
-    if in_place:
-        first = copy(first)
-
-    if isinstance(first, collections.abc.MutableSequence):
-        # 合并 sequence
-        if isinstance(second, collections.abc.Sequence):
-            first.extend(second)
-        else:
-            first.append(second)
-    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
-        # 合并 dict
-        for k, v in second.items():
-            first[k] = merge_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
-    else:
-        first = second
-        # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
-
-    return first
+_T = typing.TypeVar("_T")
 
 
-def upate_tree_recursive(first: dict, second):
-    """ 迭代更新第一个 dict """
-    if not isinstance(first, (collections.abc.MutableSequence, collections.abc.MutableMapping)):
-        raise TypeError(f"{type(first)}")
+def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
+    pth = None
 
-    elif second is None or second is _not_found_:
+    if not key and key != 0:
         pass
+    elif isinstance(key, str):
+        pth = key.split("/")
+    elif not isinstance(key, list) and key is not None:
+        pth = [key]
+    elif len(key) > 0:
+        pth = key
 
-    elif isinstance(first, collections.abc.MutableSequence):
-        # 合并 sequence
-        if isinstance(second, collections.abc.Sequence):
-            first.extend(second)
-        else:
-            first.append(second)
+    if pth is None:
+        if hasattr(target, "_cache"):  # is HTree
+            target._cache=update_tree(target._cache, None, *args, **kwargs)
 
-    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
-        # 合并 dict
-        for k, v in second.items():
-            if v is _not_found_:
-                continue
-            next_level = first.get(k, None)
-            if isinstance(next_level, (collections.abc.MutableSequence)):
-                upate_tree_recursive(next_level, v)
-            elif isinstance(next_level, (collections.abc.MutableMapping)) and isinstance(v, collections.abc.Mapping):
-                upate_tree_recursive(next_level, v)
-            else:
-                first[k] = v
+        elif len(args) > 0:
+            src = args[0]
+
+            if src is _not_found_:
+                pass
+            elif target is None or target is _not_found_:
+                target = src
+
+            elif target.__class__.__name__ == "HTree":
+                target.update(src, **kwargs)
+
+            elif isinstance(target, collections.abc.MutableMapping) and isinstance(src, collections.abc.Mapping):
+                # 合并 dict
+                for k, v in src.items():
+                    update_tree(target, k, v, **kwargs)
+
+            elif kwargs.get("_idempotent", False) is True:
+                target = src
+
+            elif isinstance(target, collections.abc.MutableSequence):
+                if isinstance(src, collections.abc.Sequence):
+                    target.extend(src)
+                else:
+                    target.append(src)
+            elif src is not None:
+                target = src
+
+            target = update_tree(target, None, *args[1:], **kwargs)
     else:
-        raise TypeError(f"Can not update {type(first)} with {type(second)}!")
+        key = pth[0]
 
-    return first
+        if isinstance(key, str) and key.isdigit():
+            key = int(key)
+
+        if isinstance(key, str):
+            if target is _not_found_ or target is None:
+                target = {}
+
+            # if isinstance(target, collections.abc.MutableMapping):
+            if hasattr(target.__class__, key):
+                update_tree(getattr(target, key), pth[1:], *args, **kwargs)
+            else:
+                target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
+
+            #     raise RuntimeError(f"Can not update {target} with {key}!")
+        else:  # if isinstance(key, int):
+            if target is _not_found_ or target is None:
+                target = [None] * (key + 1)
+            elif isinstance(target, collections.abc.Sequence):
+                if key > len(target):
+                    target = [*target] + [None] * (key - len(target) + 1)
+            # else:
+            #     raise TypeError(f"{type(target)} {type(key)}")
+            target[key] = update_tree(target[key], pth[1:], *args, **kwargs)
+
+        # else:
+        #     raise NotImplementedError(f"{type(key)}")
+
+    return target
+
+
+ 
+ 
+
+def traversal_tree(d: typing.Any, func: typing.Callable[..., typing.Any]) -> typing.Any:
+    if isinstance(d, dict):
+        return {k: traversal_tree(v, func) for k, v in d.items()}
+    elif isinstance(d, list):
+        return [traversal_tree(v, func) for idx, v in enumerate(d)]
+    else:
+        return func(d)
+
+
+# def update_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
+#     """ 递归合并两个 Hierarchical Tree """
+#     if len(args) > 0:
+#         return update_tree_recursive(
+#             update_tree_recursive(first, second, level=level, in_place=in_place, append=append),
+#             *args, level=level, in_place=in_place, append=append)
+
+#     if second is None or second is _not_found_ or level == 0:
+#         return first
+#     elif first is None or first is _not_found_:
+#         return second
+
+#     if in_place:
+#         first = copy(first)
+
+#     if isinstance(first, collections.abc.MutableSequence):
+#         # 合并 sequence
+#         if isinstance(second, collections.abc.Sequence):
+#             first.extend(second)
+#         else:
+#             first.append(second)
+#     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
+#         # 合并 dict
+#         for k, v in second.items():
+#             first[k] = update_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
+#     else:
+#         first = second
+#         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
+
+#     return first
 
 
 class DictTemplate:
@@ -100,7 +159,7 @@ class DictTemplate:
         self._template = tmpl
 
     def __missing__(self, key):
-        return '{'+key+'}'
+        return "{" + key + "}"
 
     def __getitem__(self, key):
         try:
@@ -113,7 +172,7 @@ class DictTemplate:
     def get(self, key, default_value=None):
         try:
             if isinstance(key, str):
-                res = _recursive_get(self._template, key.split('.'))
+                res = _recursive_get(self._template, key.split("."))
             else:
                 res = self._template[key]
         except (KeyError, IndexError):
@@ -127,7 +186,7 @@ class DictTemplate:
 def format_string_recursive(obj, mapping=None):
     class DefaultDict(dict):
         def __missing__(self, key):
-            return '{'+key+'}'
+            return "{" + key + "}"
 
     d = DefaultDict(mapping)
     res, _ = tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
@@ -152,7 +211,7 @@ def normalize_data(data):
     if isinstance(data, primary_type):
         return data
     elif isinstance(data, collections.abc.Mapping):
-        return {k:  normalize_data(v) for k, v in data.items()}
+        return {k: normalize_data(v) for k, v in data.items()}
     elif isinstance(data, collections.abc.Sequence):
         return [normalize_data(v) for v in data]
     elif isinstance(data, collections.abc.Iterable):
@@ -233,7 +292,7 @@ def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, 
         for k, v in second.items():
             d = first.get(k, None)
             if isinstance(d, collections.abc.Mapping):
-                deep_merge_dict(d, v, level-1)
+                deep_merge_dict(d, v, level - 1)
             elif d is None:  # or not isinstance(v, collections.abc.Mapping):
                 first[k] = v
     elif second is None:
@@ -347,7 +406,9 @@ def get_value(*args, **kwargs) -> typing.Any:
 
 
 @deprecated
-def get_many_value(d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None) -> collections.abc.Mapping:
+def get_many_value(
+    d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None
+) -> collections.abc.Mapping:
     return {k: get_value(d, k, get_value(default_value, idx)) for idx, k in enumerate(name_list)}
 
 
@@ -360,22 +421,22 @@ def set_value(*args, **kwargs) -> bool:
 def try_get(obj, path: str, default_value=_undefined_):
     if obj is None or obj is _not_found_:
         return default_value
-    elif path is None or path == '':
+    elif path is None or path == "":
         return obj
 
     start = 0
     path = path.strip(".")
     s_len = len(path)
     while start >= 0 and start < s_len:
-        pos = path.find('.', start)
+        pos = path.find(".", start)
         if pos < 0:
             pos = s_len
-        next_obj = getattr(obj, path[start: pos], _not_found_)
+        next_obj = getattr(obj, path[start:pos], _not_found_)
 
         if next_obj is not _not_found_:
             obj = next_obj
         elif isinstance(obj, collections.abc.Mapping):
-            next_obj = obj.get(path[start: pos], _not_found_)
+            next_obj = obj.get(path[start:pos], _not_found_)
             if next_obj is not _not_found_:
                 obj = next_obj
             else:
@@ -383,7 +444,7 @@ def try_get(obj, path: str, default_value=_undefined_):
         else:
             break
 
-        start = pos+1
+        start = pos + 1
     if start > s_len:
         return obj
     elif default_value is _undefined_:
@@ -394,19 +455,19 @@ def try_get(obj, path: str, default_value=_undefined_):
 
 @deprecated
 def try_getattr_r(obj, path: str):
-    if path is None or path == '':
-        return obj, ''
+    if path is None or path == "":
+        return obj, ""
     start = 0
     path = path.strip(".")
     s_len = len(path)
     while start >= 0 and start < s_len:
-        pos = path.find('.', start)
+        pos = path.find(".", start)
         if pos < 0:
             pos = s_len
         if not hasattr(obj, path[start:pos]):
             break
-        obj = getattr(obj, path[start: pos])
-        start = pos+1
+        obj = getattr(obj, path[start:pos])
+        start = pos + 1
     return obj, path[start:]
 
 
@@ -417,7 +478,7 @@ def getattr_r(obj, path: str):
     # if p != '':
     #     raise KeyError(f"Can for find path {path}")
     if type(path) is str:
-        path = path.split('.')
+        path = path.split(".")
 
     o = obj
     for p in path:

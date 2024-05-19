@@ -1,4 +1,3 @@
-
 import atexit
 import collections.abc
 import inspect
@@ -10,21 +9,21 @@ import sys
 from datetime import datetime
 from inspect import getframeinfo, stack
 
-from .envs import SP_DEBUG, SP_MPI
+from .envs import SP_DEBUG, SP_MPI, SP_LABEL, SP_MPI_RANK, SP_MPI_SIZE
 
-default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
-                                     '%(pathname)s:%(lineno)d:%(funcName)s: '
-                                     '%(message)s')
+default_formater = logging.Formatter(
+    "%(asctime)s [%(name)8s] %(levelname)8s:" "%(pathname)s:%(lineno)d:%(funcName)s: " "%(message)s"
+)
 
 
 MPI_MSG = ""
 
-if SP_MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-    MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
+if SP_MPI is not None and SP_MPI_RANK > 0:
+    MPI_MSG = f"[{SP_MPI_RANK}/{SP_MPI_SIZE}]"
 
 
 class CustomFormatter(logging.Formatter):
-    """ Logging Formatter to add colors and count warning / errors """
+    """Logging Formatter to add colors and count warning / errors"""
 
     # Black       0;30     Dark Gray     1;30
     # Blue        0;34     Light Blue    1;34
@@ -44,15 +43,16 @@ class CustomFormatter(logging.Formatter):
     bold_red = "\x1b[1;31m"
     reset = "\x1b[0m"
 
-    format_normal = '%(asctime)s [%(name)8s] %(levelname)8s:' + MPI_MSG + \
-        ' %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
+    format_normal = (
+        "%(asctime)s [%(name)8s] %(levelname)8s:" + MPI_MSG + " %(pathname)s:%(lineno)d:%(funcName)s: %(message)s"
+    )
 
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
-        logging.INFO:  blue + '%(asctime)s [%(name)8s] %(levelname)8s: ' + MPI_MSG+'%(message)s' + reset,
+        logging.INFO: blue + "%(asctime)s [%(name)8s] %(levelname)8s: " + MPI_MSG + "%(message)s" + reset,
         logging.WARNING: brown + format_normal + reset,
         logging.ERROR: red + format_normal + reset,
-        logging.CRITICAL: bold_red + format_normal + reset
+        logging.CRITICAL: bold_red + format_normal + reset,
     }
 
     def format(self, record: logging.LogRecord):
@@ -63,8 +63,7 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=None):
-
+def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
     m_logger = logging.getLogger(name)
 
     formater = formater or CustomFormatter()
@@ -72,7 +71,7 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
     if isinstance(handler, str) and handler == "STDOUT":
         handler = logging.StreamHandler(stream=sys.stdout)
     elif handler is None:
-        prefix = prefix or os.environ.get('SP_LOG_PREFIX', f"/tmp/sp_log_{os.environ['USER']}/sp_")
+        prefix = prefix or os.environ.get("SP_LOG_PREFIX", f"/tmp/sp_log_{os.environ['USER']}/sp_")
         path = pathlib.Path(f"{prefix}{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.log")
         path = path.expanduser().resolve()
         if not path.parent.exists():
@@ -86,42 +85,44 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
     else:
         raise NotImplementedError()
 
-    match level:
-        # case "1" | "true" | "verbose" | "debug" | True:
-        #     level = logging.DEBUG
-        case "0" | "warning":
-            level = logging.WARNING
-        case "-2" | "quiet":
-            level = logging.CRITICAL
-        case "false" | "False" | False:
-            level = logging.INFO
-        case _:
-            level = logging.DEBUG
-
-    if level is not None:
-        m_logger.setLevel(level)
-
     return m_logger
 
 
-logger = sp_enable_logging(__package__[:__package__.find('.')], level=SP_DEBUG, handler="STDOUT")
+logger = sp_enable_logging(SP_LABEL, handler="STDOUT")
 
- 
+
+match SP_DEBUG:
+    # case "1" | "true" | "verbose" | "debug" | True:
+    #     level = logging.DEBUG
+    case "0" | "warning":
+        level = logging.WARNING
+    case "-2" | "quiet":
+        level = logging.CRITICAL
+    case "false" | "False" | False:
+        level = logging.INFO
+    case _:
+        level = logging.DEBUG
+
+if SP_MPI_RANK == 0:
+    logger.setLevel(level)
+else:
+    logger.setLevel(logging.ERROR)
+
+
 def _at_end():
     logger.setLevel(logging.INFO)
     logger.info("The End")
     logging.shutdown()
 
+
 atexit.register(_at_end)
 
 
 def deprecated(func):
-    """ python 修饰器，作用于类方法或函数，当函数或方法被调用时，在标准日志输出 函数或方法定义所在文件和行数 """
+    """python 修饰器，作用于类方法或函数，当函数或方法被调用时，在标准日志输出 函数或方法定义所在文件和行数"""
 
     def _wrap(func):
-
-        def wrapped(*args, __fun__=func, ** kwargs):
-
+        def wrapped(*args, __fun__=func, **kwargs):
             caller = getframeinfo(stack()[1][0])
             file_name = caller.filename
             line_number = caller.lineno
@@ -135,24 +136,23 @@ def deprecated(func):
 
         return wrapped
 
-    if func is None:
+    if isinstance(func, str):
+        logger.warning(func)
         return lambda o: _wrap(func)
     else:
         return _wrap(func)
 
 
 def experimental(func):
-
     def _wrap(func):
-        def wrapped(*args, __fun__=func, ** kwargs):
-
+        def wrapped(*args, __fun__=func, **kwargs):
             if inspect.isfunction(func):
-                logger.warning(
-                    f"Experimental function '{__fun__.__qualname__}' !")
+                logger.warning(f"Experimental function '{__fun__.__qualname__}' !")
                 raise DeprecationWarning(__fun__.__qualname__)
             else:
                 logger.warning(f"Experimental object {__fun__}")
             return __fun__(*args, **kwargs)
+
         return wrapped
 
     if func is None:

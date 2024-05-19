@@ -3,7 +3,7 @@ import typing
 import uuid
 
 import numpy as np
-from spdm.data.HTree import HTree
+from spdm.core.HTree import HTree
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
 from spdm.geometry.Curve import Curve
@@ -39,7 +39,7 @@ class SVGView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, obj, **kwargs) -> typing.Any:
+    def draw(self, obj, **kwargs) -> typing.Any:
 
         bbox = []
         contents = []

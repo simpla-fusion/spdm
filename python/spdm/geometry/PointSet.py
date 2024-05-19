@@ -9,18 +9,19 @@ from copy import copy
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
-                            nTupleType)
+from ..utils.typing import ArrayLike, ArrayType, NumericType, array_type, nTupleType
 from .BBox import BBox
 from .GeoObject import GeoObject
 from .Point import Point
 
 
 class PointSet(GeoObject):
-    def __init__(self, *args,  **kwargs) -> None:
-
-        if len(args) == 1 and isinstance(args[0], collections.abc.Sequence):
-            args = args[0]
+    def __init__(self, *args, **kwargs) -> None:
+        if len(args) == 1:
+            if isinstance(args[0], collections.abc.Sequence):
+                args = args[0]
+            elif isinstance(args[0], dict):
+                args = [*args[0].values()]
 
         if len(args) == 0:
             raise RuntimeError(f"{self.__class__.__name__} must have at least one point")
@@ -37,7 +38,7 @@ class PointSet(GeoObject):
         else:
             raise TypeError(f"illegal type args[0]={type(args[0])}")
 
-        super().__init__(ndim=points.shape[-1],  **kwargs)
+        super().__init__(ndim=points.shape[-1], **kwargs)
 
         self._points: array_type = points
         self.set_coordinates()
@@ -49,7 +50,7 @@ class PointSet(GeoObject):
         if len(args) == 0:
             return
         if len(args) == 1 and isinstance(args[0], str):
-                args = [x.strip() for x in args[0].split(",")]
+            args = [x.strip() for x in args[0].split(",")]
 
         self._metadata["coordinates"] = args
 
@@ -66,15 +67,17 @@ class PointSet(GeoObject):
         other.set_coordinates()
         return other
 
-    def __array__(self) -> array_type: return self._points
+    def __array__(self) -> array_type:
+        return self._points
 
     @property
-    def points(self) -> typing.List[ArrayType]: return [self._points[..., idx] for idx in range(self.ndim)]
+    def points(self) -> typing.List[ArrayType]:
+        return [self._points[..., idx] for idx in range(self.ndim)]
 
     @functools.cached_property
     def bbox(self) -> BBox:
         xmin = [np.min(self._points[..., idx]) for idx in range(self.ndim)]
-        dims = [np.max(self._points[..., idx])-xmin[idx] for idx in range(self.ndim)]
+        dims = [np.max(self._points[..., idx]) - xmin[idx] for idx in range(self.ndim)]
         return BBox(xmin, dims)
 
     @property

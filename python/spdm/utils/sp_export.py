@@ -1,3 +1,4 @@
+from importlib import resources as impresources
 import collections
 import collections.abc
 import functools
@@ -68,10 +69,6 @@ def sp_load_module(mod_name: str):
 
 
 def sp_find_module(path, fragment=None, pythonpath=None):
-    """
-     path= sympy/tensor/tensor
-     path= sympy.tensor.tensor#Matrix
-    """
     if path is None:
         return None
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):
@@ -241,3 +238,30 @@ def absolute_path_slash(path, prefix):
 def relative_module_path(cls, base):
     return [p.__name__.lower()
             for p in inspect.getmro(cls) if issubclass(p, base) and p is not base and p is not cls][:: -1]+[cls.__name__]
+
+
+def walk_namespace_modules(namespace: str, ignores=["__pycache__", "obsolete"]):
+    """
+        Walks a namespace and returns a list of all modules found within it.
+        This function is useful for discovering all modules within a package.
+        :param namespace: The namespace to walk.        
+        :param ignores: A list of directories to ignore.
+    """
+
+    namespace = namespace.strip('.')
+
+    try:
+        contents = impresources.contents(namespace)
+    except Exception:
+        return
+
+    if "__init__.py" in contents:
+        yield namespace
+    else:
+        for sub in impresources.contents(namespace):
+            if sub in ignores:
+                continue
+            elif sub.endswith(".py"):
+                yield namespace + "." + sub[:-3]
+            else:
+                yield from walk_namespace_modules(namespace + "." + sub, ignores=ignores)

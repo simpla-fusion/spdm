@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from fytok.transport.Equilibrium import Equilibrium
-from spdm.data.File import File
+from spdm.core.File import File
 import numpy as np
 from ..util.logger import logger
 
